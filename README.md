@@ -111,18 +111,30 @@ empresa (Google Workspace) que lo tiene bloqueado: se habilita en la consola de 
 | `loader.js` | Lo que va adentro del Atajo: baja `LockScreenCal.js` de este repo y lo corre con tu `MI_CONFIG`. Sin internet, usa la última copia |
 | `google/Code.gs` | El puente opcional con Google Calendar |
 | `tools/preview.cjs` | Vista previa en la compu, con datos de ejemplo |
+| `docs/Bitacora.md` | Estado del proyecto: qué está probado, qué falta y decisiones tomadas |
+| `CLAUDE.md` | Instrucciones para agentes de IA que trabajen en el repo |
 
-El Atajo tiene tres acciones:
+### Armar el Atajo (lo hace una vez el que lo mantiene)
 
-1. **Scriptable → Run Inline Script**, con el contenido de `loader.js`.
-2. **Codificar en Base64**, en modo **Decodificar** (Scriptable no le puede pasar
-   una imagen a Atajos: se la pasa como texto y acá vuelve a ser imagen).
-3. **Establecer fondo de pantalla** con el resultado, con **Mostrar vista previa**
-   y **Recortar al sujeto** apagados.
+En **Atajos** → **+**. Para agregar cada acción, escribí la palabra en la barra
+**Buscar acciones**:
 
-Para compartirlo: en Atajos, mantené apretado el Atajo → **Compartir** → **Copiar
-enlace de iCloud**. El link es una foto del Atajo en ese momento: conviene
-compartirlo con `MI_CONFIG` vacío y recién después personalizar el propio.
+1. Buscá **Scriptable** → **Run Inline Script**. Borrá el código de ejemplo y pegá
+   [`loader.js`](loader.js). "Run In App" apagado.
+2. Buscá **Base64** → la acción de Base64, cambiada a modo **decodificar**, con el
+   resultado del script como entrada. (Scriptable no le puede pasar una imagen a
+   Atajos: se la pasa como texto y acá vuelve a ser imagen.)
+3. Buscá **fondo** → la acción que pone un fondo de pantalla (no "cambiar entre
+   fondos"), con el resultado de Base64 como imagen, **solo pantalla bloqueada**, y
+   sin vista previa ni recorte.
+4. Nombre: **Actualizar calendario**.
+
+Los nombres exactos de las acciones y sus opciones cambian según la versión de iOS:
+por eso acá van las palabras para buscarlas y no los textos de los botones.
+
+Para compartirlo: mantené apretado el Atajo → **Compartir** → **Copiar enlace de
+iCloud**. El link es una foto del Atajo en ese momento: conviene compartirlo con
+`MI_CONFIG` vacío y recién después personalizar el propio.
 
 ### Vista previa en la compu
 
