@@ -13,7 +13,9 @@ const CONFIG = {
   //  - Vacio (""): los calendarios del iPhone. Funciona sin configurar nada,
   //    cada calendario con su color.
   //  - URL de Google Apps Script (ver google/Code.gs): trae el color de cada
-  //    EVENTO, no solo el del calendario. Si falla, usa los del iPhone.
+  //    EVENTO, no solo el del calendario. Los calendarios que Google no tiene
+  //    (ej. los cumpleaños de los contactos) se siguen leyendo del iPhone. Si
+  //    Google no responde, usa todo del iPhone.
   googleUrl: "",
 
   // Calendarios a ignorar, por nombre tal cual aparecen en la app Calendario
@@ -49,7 +51,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.5";
+const VERSION = "0.6";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -243,6 +245,7 @@ async function loadFromIPhone(now) {
     end: e.endDate.getTime(),
     allDay: e.isAllDay,
     color: "#" + String(e.calendar.color.hex).replace("#", ""),
+    calendar: e.calendar.title,
   }));
 }
 
@@ -254,12 +257,14 @@ async function loadFromGoogle() {
   if (!json || !Array.isArray(json.events)) throw new Error("Respuesta inesperada de Google: " + JSON.stringify(json).slice(0, 200));
   // Mismo filtro de calendarios que con el iPhone, para que MI_CONFIG sirva igual
   // con las dos fuentes.
-  return json.events
+  const calendars = new Set(json.calendars || json.events.map(e => e.calendar));
+  const events = json.events
     .filter(e => !CONFIG.onlyCalendars.length || CONFIG.onlyCalendars.includes(e.calendar))
     .filter(e => !CONFIG.excludeCalendars.includes(e.calendar))
     .map(e => e.allDay
       ? { ...e, start: localDay(e.startDay), end: localDay(e.endDay) }
       : e);
+  return { events, calendars };
 }
 
 async function renderImage(payload, W, H) {
@@ -278,11 +283,20 @@ async function main() {
   const now = new Date();
   let events = null;
   let note = "";
+  let googleCals = null;
   if (CONFIG.googleUrl) {
-    try { events = await loadFromGoogle(); }
-    catch (err) { console.error(err); note = " · sin Google"; }
+    try {
+      const g = await loadFromGoogle();
+      events = g.events;
+      googleCals = g.calendars;
+    } catch (err) { console.error(err); note = " · sin Google"; }
   }
-  if (!events) events = await loadFromIPhone(now);
+  const phone = await loadFromIPhone(now);
+  // Del iPhone solo lo que Google no trajo: si no, cada evento saldria dos veces
+  // y el de Google es el que tiene el color del evento.
+  events = events
+    ? events.concat(phone.filter(e => !googleCals.has(e.calendar)))
+    : phone;
 
   // El mismo evento puede venir de dos calendarios (pasa con los feriados):
   // se muestra una sola vez.

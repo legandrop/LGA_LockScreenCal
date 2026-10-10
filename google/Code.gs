@@ -38,11 +38,16 @@ function doGet(e) {
   const day = d => Utilities.formatDate(d, tz, "yyyy-MM-dd");
 
   const events = [];
+  const calendars = [];
   CalendarApp.getAllCalendars().forEach(cal => {
     if (cal.isHidden() || !cal.isSelected()) return;
     if (EXCLUDE.indexOf(cal.getName()) >= 0) return;
+    calendars.push(cal.getName());
     cal.getEvents(start, end).forEach(ev => {
-      if (ev.getMyStatus() === CalendarApp.GuestStatus.NO) return;
+      // En calendarios de solo lectura (feriados, compartidos) puede fallar.
+      let status = null;
+      try { status = ev.getMyStatus(); } catch (_) {}
+      if (status === CalendarApp.GuestStatus.NO) return;
       const out = {
         title: ev.getTitle() || "(sin título)",
         calendar: cal.getName(), // para filtrar con onlyCalendars / excludeCalendars
@@ -59,7 +64,9 @@ function doGet(e) {
       events.push(out);
     });
   });
-  return json_({ events: events, generated: Date.now() });
+  // calendars: lo que Google conoce, para que el iPhone complete con el resto
+  // (ej. los cumpleaños de los contactos, que no estan en Google).
+  return json_({ events: events, calendars: calendars, generated: Date.now() });
 }
 
 function json_(obj) {

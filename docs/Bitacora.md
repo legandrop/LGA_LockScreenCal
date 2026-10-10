@@ -47,6 +47,19 @@ el cargador completo con `onlyCalendars: ["Wanka", "Holidays in Argentina"]` y s
 entero en la acción de Scriptable. Al compartir el Atajo con otros, hay que darles una
 copia con `MI_CONFIG` vacío.
 
+**Después pidió los colores de cada evento** (lo que de verdad quería al decir
+"conectar con Google"): eso es el puente `google/Code.gs`. Desde la v0.6 el puente se
+combina con el iPhone: de Google salen los calendarios que Google conoce (con el color
+de cada evento) y del iPhone el resto, como "Cumpleaños" (contactos). Probado con un
+Scriptable simulado (sin Google, con Google, Google caído); **sin probar en el
+teléfono**. Su `MI_CONFIG` actual: `onlyCalendars: ["Wanka", "Feriados Argentina",
+"Cumples", "Cumpleaños"]` + sus palabras clave; falta sumarle `googleUrl`.
+
+Riesgo a mirar: si el nombre que Google le da a un calendario no coincide con el del
+iPhone (el principal a veces se llama como el mail), `onlyCalendars` lo descarta de
+Google y sale la copia del iPhone, sin colores de evento. Se arregla agregando el
+nombre de Google a `onlyCalendars`.
+
 Desde la v0.5, `onlyCalendars` y `excludeCalendars` filtran también los eventos del
 puente de Google (Code.gs ahora manda el nombre del calendario en `calendar`).
 

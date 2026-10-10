@@ -97,8 +97,9 @@ ver esos colores, hay un puente chiquito que corre en tu cuenta de Google
    googleUrl: "https://script.google.com/macros/s/XXXX/exec?token=TU_TOKEN",
    ```
 
-Si Google no responde, usa los calendarios del iPhone y al lado de la hora dice
-`sin Google`. Si en el paso 5 no aparece "Cualquier usuario", la cuenta es de una
+Los calendarios que Google no tiene (por ejemplo, los cumpleaños de los contactos
+del iPhone) se siguen leyendo del iPhone. Si Google no responde, usa todo del iPhone
+y al lado de la hora dice `sin Google`. Si en el paso 5 no aparece "Cualquier usuario", la cuenta es de una
 empresa (Google Workspace) que lo tiene bloqueado: se habilita en la consola de admin.
 
 ---
