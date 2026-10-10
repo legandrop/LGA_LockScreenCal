@@ -80,8 +80,11 @@ Lega está en **iOS 26** (o el que corresponda a octubre de 2026), en castellano
   código del cargador adentro: se le pidió que toque la › y mande captura.
 - Agregó por error **"Cambiar a [Fondo de pantalla]"**: es "Cambiar entre fondos de
   pantalla" (`posters.switch`), que solo alterna entre fondos ya creados y no pone la
-  imagen. Hay que borrarla y buscar la que *pone* una imagen de fondo
-  (`wallpaper.set`); se le pidió captura de los resultados de buscar "fondo".
+  imagen. Hay que borrarla y usar la que *pone* una imagen de fondo
+  (`wallpaper.set`), que en su iOS se llama **"Establecer foto como fondo de
+  pantalla"** (confirmado en captura; ícono azul de flor, buscando "fondo").
+  Ojo que en la misma búsqueda aparecen acciones de Ink ("Confirmar fondo aplicado",
+  "Generar el último fondo"…): no van.
 
 **Sin confirmar** (no inventar, pedir captura): el nombre exacto en castellano de la
 acción de Base64, de la de fondo de pantalla y de sus opciones internas. Indicarle la
