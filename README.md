@@ -72,6 +72,7 @@ const MI_CONFIG = {
 | `excludeCalendars` | Calendarios a ignorar, con el nombre tal cual aparece en la app Calendario |
 | `onlyCalendars` | Si tiene nombres, solo esos calendarios |
 | `maxDays` | Hasta cuántos días adelante mirar (se dibuja lo que entre). Por defecto 14 |
+| `startInDays` | Arrancar N días después de hoy (para probar cómo se ve otra semana). Por defecto 0 |
 | `topPercent` / `bottomPercent` | Espacio libre arriba (reloj, widgets) y abajo (linterna, cámara), en % del alto. Por defecto 33 y 13 |
 | `background`, `textColor`, `mutedColor` | Colores |
 | `showUpdated` | Mostrar `act. HH:MM` |

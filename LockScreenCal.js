@@ -28,6 +28,10 @@ const CONFIG = {
   // Cuantos dias hacia adelante mirar como maximo. Se dibuja lo que entre.
   maxDays: 14,
 
+  // Arrancar N dias despues de hoy en vez de hoy. Sirve para probar como se ve
+  // una semana con mas eventos; para el uso normal, 0.
+  startInDays: 0,
+
   // Zona libre de la pantalla, en % del alto. Arriba esta el reloj (y los
   // widgets si tenes); abajo, la linterna y la camara.
   topPercent: 33,
@@ -55,7 +59,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.7";
+const VERSION = "0.8";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -148,6 +152,7 @@ function drawCalendar(canvas, data) {
   const now = data.now;
   const today = new Date(now);
 
+  // d: dias desde HOY de verdad (no desde el primer dia dibujado).
   const drawHeader = (d, dayStart, y) => {
     const date = new Date(dayStart);
     const main = d === 0 ? "HOY" : d === 1 ? "MAÑANA" : DIAS[date.getDay()].toUpperCase();
@@ -207,7 +212,8 @@ function drawCalendar(canvas, data) {
   };
 
   let y = top;
-  for (let d = 0; d < o.maxDays; d++) {
+  const first = o.startInDays || 0;
+  for (let d = first; d < first + o.maxDays; d++) {
     const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d).getTime();
     const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d + 1).getTime();
     let evs = data.events.filter(e => e.start < dayEnd && e.end > dayStart);
@@ -260,7 +266,7 @@ async function loadFromIPhone(now) {
   cals = cals.filter(c => !CONFIG.excludeCalendars.includes(c.title));
   if (!cals.length) return [];
   const start = startOfDay(now);
-  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + CONFIG.maxDays);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (CONFIG.startInDays || 0) + CONFIG.maxDays);
   const evs = await CalendarEvent.between(start, end, cals);
   return evs.map(e => ({
     title: e.title || "(sin título)",
@@ -274,7 +280,7 @@ async function loadFromIPhone(now) {
 
 async function loadFromGoogle() {
   const sep = CONFIG.googleUrl.includes("?") ? "&" : "?";
-  const req = new Request(CONFIG.googleUrl + sep + "days=" + CONFIG.maxDays);
+  const req = new Request(CONFIG.googleUrl + sep + "days=" + ((CONFIG.startInDays || 0) + CONFIG.maxDays));
   req.timeoutInterval = 20;
   const json = await req.loadJSON();
   if (!json || !Array.isArray(json.events)) throw new Error("Respuesta inesperada de Google: " + JSON.stringify(json).slice(0, 200));

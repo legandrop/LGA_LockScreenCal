@@ -68,6 +68,11 @@ luminancia del color (corte WCAG en 0.179). Sobre un evento pintado, las palabra
 clave van en negrita del color del texto (en su color no se verían). La barrita quedó
 como opción: `eventStyle: "bar"`.
 
+**`startInDays` (v0.8, 10/10):** para probar, Lega quiso ver desde el miércoles 14/10
+(sus días actuales tienen eventos personales sin color). Se le pasó el cargador con
+`startInDays: 4`. **Hay que acordarse de sacarlo** (o ponerlo en 0) cuando termine de
+probar, o el fondo va a seguir arrancando 4 días adelante.
+
 Riesgo a mirar: si el nombre que Google le da a un calendario no coincide con el del
 iPhone (el principal a veces se llama como el mail), `onlyCalendars` lo descarta de
 Google y sale la copia del iPhone, sin colores de evento. Se arregla agregando el
