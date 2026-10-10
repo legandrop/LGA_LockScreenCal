@@ -16,8 +16,8 @@ const CONFIG = {
   //    EVENTO, no solo el del calendario. Si falla, usa los del iPhone.
   googleUrl: "",
 
-  // Calendarios del iPhone a ignorar (por nombre, tal cual aparecen en la app
-  // Calendario). Ej: ["Holidays in Argentina", "Cumples"]
+  // Calendarios a ignorar, por nombre tal cual aparecen en la app Calendario
+  // (o en Google Calendar, si se usa googleUrl). Ej: ["Holidays in Argentina"]
   excludeCalendars: [],
 
   // Si tiene nombres, SOLO se muestran esos calendarios.
@@ -49,7 +49,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.4";
+const VERSION = "0.5";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -252,9 +252,14 @@ async function loadFromGoogle() {
   req.timeoutInterval = 20;
   const json = await req.loadJSON();
   if (!json || !Array.isArray(json.events)) throw new Error("Respuesta inesperada de Google: " + JSON.stringify(json).slice(0, 200));
-  return json.events.map(e => e.allDay
-    ? { ...e, start: localDay(e.startDay), end: localDay(e.endDay) }
-    : e);
+  // Mismo filtro de calendarios que con el iPhone, para que MI_CONFIG sirva igual
+  // con las dos fuentes.
+  return json.events
+    .filter(e => !CONFIG.onlyCalendars.length || CONFIG.onlyCalendars.includes(e.calendar))
+    .filter(e => !CONFIG.excludeCalendars.includes(e.calendar))
+    .map(e => e.allDay
+      ? { ...e, start: localDay(e.startDay), end: localDay(e.endDay) }
+      : e);
 }
 
 async function renderImage(payload, W, H) {

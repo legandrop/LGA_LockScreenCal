@@ -45,6 +45,7 @@ function doGet(e) {
       if (ev.getMyStatus() === CalendarApp.GuestStatus.NO) return;
       const out = {
         title: ev.getTitle() || "(sin título)",
+        calendar: cal.getName(), // para filtrar con onlyCalendars / excludeCalendars
         color: EVENT_COLORS[ev.getColor()] || cal.getColor(),
         allDay: ev.isAllDayEvent(),
       };

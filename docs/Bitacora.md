@@ -26,6 +26,21 @@ automatizaciones.
 | Puente de Google (`google/Code.gs`) | ⏳ Nunca probado. Lega usa una cuenta Google Workspace; puede que el admin bloquee "Cualquier usuario" |
 | Deduplicar eventos repetidos entre calendarios | ⏳ Escrito, sin probar en el teléfono |
 
+## Pedido actual (10/10): Google en vez de iCloud, eligiendo calendarios
+
+Lega quiere que salgan los calendarios de su cuenta de Google y elegir cuáles. Se le
+propusieron dos caminos:
+
+1. **Rápido, desde el teléfono:** agregar la cuenta de Google al iPhone (Ajustes) y
+   después filtrar con `onlyCalendars` en su `MI_CONFIG`. Se le pidió captura de la
+   lista de calendarios de la app Calendario para armar ese filtro.
+2. **Puente de Google (`google/Code.gs`):** además trae el color de cada evento (sus
+   colores de proyecto). Requiere armarlo en script.google.com, mejor desde la Mac, y
+   puede chocar con el bloqueo de Workspace a "Cualquier usuario".
+
+Desde la v0.5, `onlyCalendars` y `excludeCalendars` filtran también los eventos del
+puente de Google (Code.gs ahora manda el nombre del calendario en `calendar`).
+
 ## Primera corrida del Atajo (10/10)
 
 Funcionó de punta a punta: la acción de fondo mostró la miniatura del fondo 3 con el
