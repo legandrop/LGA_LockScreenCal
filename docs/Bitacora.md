@@ -79,6 +79,14 @@ así que la causa del primer fallo quedó sin identificar (probablemente la cach
 GitHub entregando una versión intermedia). Se le pasó el cargador sin `startInDays` y
 las instrucciones de automatización por hora.
 
+**Automatizaciones (10/10):** el Atajo de Lega se llama **`LGA_ScreenLockCal`**. Ya
+tiene una automatización confirmada por captura: "Cuándo: 07:00, diariamente",
+"Automatización: Ejecutar de inmediato", "Notificar al ejecutar" apagado. Pidió algo
+más frecuente ("cada vez que desbloqueo"): **iOS no tiene disparador de desbloqueo**.
+Se le propuso una automatización de tipo App con varias apps que usa seguido (al
+cerrarse). Costo a vigilar: cada corrida pega al puente de Google (cuota diaria de
+Apps Script) y gasta algo de batería.
+
 **Falla en el teléfono (10/10, 22:10):** al pegar el cargador con `googleUrl` +
 `startInDays: 4`, Atajos dio "No se pudo ejecutar Run Inline Script: Script completed
 without presenting UI, triggering a text to speak or outputting a value". Con la
