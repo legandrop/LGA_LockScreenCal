@@ -59,7 +59,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.8";
+const VERSION = "0.9";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -308,7 +308,40 @@ async function renderImage(payload, W, H) {
   return Image.fromData(Data.fromBase64String(b64));
 }
 
+// Si algo falla, igual se entrega un fondo con el error escrito: sin salida,
+// Atajos solo dice "Script completed without... outputting a value" y no se
+// sabe que paso. Se dibuja con DrawContext, por si lo que fallo es el WebView.
+function errorImage(msg, W, H) {
+  const dc = new DrawContext();
+  dc.size = new Size(W, H);
+  dc.opaque = true;
+  dc.respectScreenScale = false;
+  dc.setFillColor(new Color("#000000"));
+  dc.fillRect(new Rect(0, 0, W, H));
+  dc.setTextColor(new Color("#FF453A"));
+  dc.setFont(Font.boldSystemFont(Math.round(W / 26)));
+  dc.drawTextInRect("LockScreenCal v" + VERSION + " — error:\n\n" + msg, new Rect(W * 0.08, H * 0.34, W * 0.84, H * 0.5));
+  return dc.getImage();
+}
+
 async function main() {
+  const res = Device.screenResolution();
+  const W = Math.round(res.width), H = Math.round(res.height);
+  let img;
+  try {
+    img = await build(W, H);
+  } catch (err) {
+    console.error(err);
+    img = errorImage(String((err && err.message) || err), W, H);
+  }
+  // Atajos no acepta una imagen como salida de Scriptable: va como texto
+  // base64 y el Atajo la decodifica antes de ponerla de fondo.
+  Script.setShortcutOutput(Data.fromPNG(img).toBase64String());
+  if (config.runsInApp) await QuickLook.present(img, true);
+  Script.complete();
+}
+
+async function build(W, H) {
   const now = new Date();
   let events = null;
   let note = "";
@@ -318,9 +351,11 @@ async function main() {
       const g = await loadFromGoogle();
       events = g.events;
       googleCals = g.calendars;
+      console.log("Google: " + events.length + " eventos de " + [...googleCals].join(", "));
     } catch (err) { console.error(err); note = " · sin Google"; }
   }
   const phone = await loadFromIPhone(now);
+  console.log("iPhone: " + phone.length + " eventos");
   // Del iPhone solo lo que Google no trajo: si no, cada evento saldria dos veces
   // y el de Google es el que tiene el color del evento.
   events = events
@@ -337,8 +372,6 @@ async function main() {
     return true;
   });
 
-  const res = Device.screenResolution();
-  const W = Math.round(res.width), H = Math.round(res.height);
   const two = n => String(n).padStart(2, "0");
   const payload = {
     now: now.getTime(),
@@ -347,12 +380,8 @@ async function main() {
     footer: CONFIG.showUpdated ? `act. ${two(now.getHours())}:${two(now.getMinutes())}${note}` : "",
   };
   const img = await renderImage(payload, W, H);
-
-  // Atajos no acepta una imagen como salida de Scriptable: va como texto
-  // base64 y el Atajo la decodifica antes de ponerla de fondo.
-  Script.setShortcutOutput(Data.fromPNG(img).toBase64String());
-  if (config.runsInApp) await QuickLook.present(img, true);
-  Script.complete();
+  console.log("Dibujo listo: " + W + "x" + H);
+  return img;
 }
 
 await main();

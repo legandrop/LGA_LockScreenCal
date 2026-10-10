@@ -73,6 +73,17 @@ como opción: `eventStyle: "bar"`.
 `startInDays: 4`. **Hay que acordarse de sacarlo** (o ponerlo en 0) cuando termine de
 probar, o el fondo va a seguir arrancando 4 días adelante.
 
+**Falla en el teléfono (10/10, 22:10):** al pegar el cargador con `googleUrl` +
+`startInDays: 4`, Atajos dio "No se pudo ejecutar Run Inline Script: Script completed
+without presenting UI, triggering a text to speak or outputting a value". Con la
+respuesta real del puente y el dibujo real en Chromium, en la nube anda bien, así que
+es algo del iPhone (sospechas: memoria del proceso de Atajos, o una promesa que no
+termina con el pedido a Google). Desde la v0.9, `main()` atrapa cualquier error y
+entrega igual un fondo con el error escrito (con `DrawContext`, por si lo que falla es
+el WebView), y deja logs por etapa ("Google: …", "iPhone: …", "Dibujo listo"). Si
+vuelve a pasar sin fondo de error, el proceso se está cortando (memoria): probar el
+cargador como script dentro de la app Scriptable para ver los logs.
+
 Riesgo a mirar: si el nombre que Google le da a un calendario no coincide con el del
 iPhone (el principal a veces se llama como el mail), `onlyCalendars` lo descarta de
 Google y sale la copia del iPhone, sin colores de evento. Se arregla agregando el
