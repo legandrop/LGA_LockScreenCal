@@ -6,8 +6,9 @@ cambia. Última actualización: 10/10/2026.
 ## Resumen
 
 El script funciona en el iPhone de Lega (probado). **El Atajo está a medio armar**
-(ver "Cómo guiarlo"): las tres acciones están puestas y revisadas por captura. Falta
-apagar los dos interruptores, ponerle nombre y la primera corrida. Después vienen compartirlo por link, personalizar el suyo y las
+(ver "Cómo guiarlo"): las tres acciones están puestas y revisadas por captura. La
+primera corrida funcionó (ver abajo). Falta ponerle nombre, compartirlo y las
+automatizaciones. Después vienen compartirlo por link, personalizar el suyo y las
 automatizaciones.
 
 ## Qué está probado en el iPhone y qué no
@@ -18,12 +19,21 @@ automatizaciones.
 | Dibujo en WebView + `Device.screenResolution()` + `QuickLook` | ✅ Probado (corriendo el script dentro de Scriptable) |
 | Palabras clave en color dentro del título | ✅ Probado |
 | `Script.setShortcutOutput(imagen)` | ❌ Falla: "Unsupported shortcut output". Por eso ahora sale **base64** |
-| Salida base64 → Atajo la decodifica → fondo | ⏳ Sin probar |
-| `loader.js` dentro de "Run Inline Script" (await de primer nivel, `AsyncFunction`) | ⏳ Sin probar |
-| El WebView corriendo desde Atajos (fuera de la app, con menos memoria) | ⏳ Sin probar. Si falla, probar la opción "Run In App" de la acción |
+| Salida base64 → Atajo la decodifica → fondo | ✅ Probado el 10/10 (primera corrida del Atajo completo) |
+| `loader.js` dentro de "Run Inline Script" (await de primer nivel, `AsyncFunction`) | ✅ Probado el 10/10 |
+| El WebView corriendo desde Atajos (fuera de la app, con menos memoria) | ✅ Probado el 10/10 (corriendo con ▶︎ dentro de la app Atajos; falta ver desde una automatización) |
 | Que el reloj no tape la lista (`topPercent: 33`, `bottomPercent: 13`) | ⏳ Sin probar en el lock screen real |
 | Puente de Google (`google/Code.gs`) | ⏳ Nunca probado. Lega usa una cuenta Google Workspace; puede que el admin bloquee "Cualquier usuario" |
 | Deduplicar eventos repetidos entre calendarios | ⏳ Escrito, sin probar en el teléfono |
+
+## Primera corrida del Atajo (10/10)
+
+Funcionó de punta a punta: la acción de fondo mostró la miniatura del fondo 3 con el
+calendario dibujado. **Pero el lock screen seguía mostrando otro fondo**: la acción
+pisa el fondo elegido (el 3), no el que está activo. Se le indicó a Lega cambiar el
+lock screen activo al 3 (mantener apretado el lock screen y elegirlo). Si vuelve a
+pasar, la solución es lo que hace Ink: agregar después **"Cambiar entre fondos de
+pantalla"** apuntando a ese mismo fondo, para que además lo active.
 
 ## Lo que se vio en la primera prueba (07/10)
 
