@@ -42,8 +42,8 @@ propusieron dos caminos:
 el iPhone. Sus calendarios ahí: Wanka, Holidays in Argentina, Cumples, EEI Rodaje, y en
 "Otros": Días festivos (EE.UU.), Recordatorios programados, Cumpleaños, Sugerencias de
 Siri. El script lee **todos**, estén tildados o no en la app Calendario (de ahí salían
-el "Day of Respect…" y el "Mothers' Day"). **Lega eligió ver solo `Wanka`**: se le pasó
-el cargador completo con `onlyCalendars: ["Wanka"]` y sus palabras clave, para pegarlo
+el "Day of Respect…" y el "Mothers' Day"). **Lega eligió ver `Wanka` y `Holidays in Argentina`**: se le pasó
+el cargador completo con `onlyCalendars: ["Wanka", "Holidays in Argentina"]` y sus palabras clave, para pegarlo
 entero en la acción de Scriptable. Al compartir el Atajo con otros, hay que darles una
 copia con `MI_CONFIG` vacío.
 
