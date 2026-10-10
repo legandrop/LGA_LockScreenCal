@@ -55,6 +55,13 @@ Scriptable simulado (sin Google, con Google, Google caído); **sin probar en el
 teléfono**. Su `MI_CONFIG` actual: `onlyCalendars: ["Wanka", "Feriados Argentina",
 "Cumples", "Cumpleaños"]` + sus palabras clave; falta sumarle `googleUrl`.
 
+**Puente publicado y probado (10/10):** Lega lo armó en script.google.com con su
+cuenta y responde bien (probado con curl desde la nube: 200, JSON). Google conoce
+`Holidays in Argentina`, `Cumples`, `Wanka` y `EEI Rodaje`; los nombres coinciden con
+los del iPhone, y los eventos de Wanka vienen con sus colores de proyecto. "Feriados
+Argentina" no está en Google: sale del iPhone. Se le pasó el cargador con `googleUrl`.
+**La URL y la clave del puente no van en este repo** (están solo en su Atajo).
+
 Riesgo a mirar: si el nombre que Google le da a un calendario no coincide con el del
 iPhone (el principal a veces se llama como el mail), `onlyCalendars` lo descarta de
 Google y sale la copia del iPhone, sin colores de evento. Se arregla agregando el
