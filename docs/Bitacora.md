@@ -1,13 +1,13 @@
 # Bitácora — dónde estamos
 
 Este archivo es el **estado actual**, no un historial: se reescribe cuando algo
-cambia. Última actualización: 09/10/2026.
+cambia. Última actualización: 10/10/2026.
 
 ## Resumen
 
-El script funciona en el iPhone de Lega (probado). **Falta armar el Atajo**: Lega
-estaba en el primer paso, buscando la acción de Scriptable, cuando se cortó la
-sesión. Después vienen compartirlo por link, personalizar el suyo y las
+El script funciona en el iPhone de Lega (probado). **El Atajo está a medio armar**
+(ver "Cómo guiarlo"): la acción de Base64 está bien, la de Scriptable falta
+confirmarla y la de fondo de pantalla es la equivocada. Después vienen compartirlo por link, personalizar el suyo y las
 automatizaciones.
 
 ## Qué está probado en el iPhone y qué no
@@ -72,6 +72,16 @@ Lega está en **iOS 26** (o el que corresponda a octubre de 2026), en castellano
   **"Buscar acciones"**, y abajo chips **Scripts · Controles · Dispositivo…**
 - Ahí hay que **escribir en la barra** el nombre de lo que se busca. Se confundió: creyó
   que tenía que buscar un botón con ese nombre y escribió "Accio".
+
+- Acción de Base64 ya agregada, se ve así: **"Decodificar [Output] con base64"**
+  (bien: "Output" es la salida de la acción de Scriptable).
+- La acción de Scriptable que agregó se ve como **"Run with [Parameter] ›"** con el
+  ícono `{}` de Scriptable. Sin confirmar que sea "Run Inline Script" ni que tenga el
+  código del cargador adentro: se le pidió que toque la › y mande captura.
+- Agregó por error **"Cambiar a [Fondo de pantalla]"**: es "Cambiar entre fondos de
+  pantalla" (`posters.switch`), que solo alterna entre fondos ya creados y no pone la
+  imagen. Hay que borrarla y buscar la que *pone* una imagen de fondo
+  (`wallpaper.set`); se le pidió captura de los resultados de buscar "fondo".
 
 **Sin confirmar** (no inventar, pedir captura): el nombre exacto en castellano de la
 acción de Base64, de la de fondo de pantalla y de sus opciones internas. Indicarle la
