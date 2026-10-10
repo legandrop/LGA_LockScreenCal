@@ -104,7 +104,14 @@ repo** (es público). Están en su repo privado `legandrop/LGA_Assistant`, archi
 columna Google `colorId` se traduce a hex con la tabla `EVENT_COLORS` de
 `google/Code.gs`. Ya se le pasaron armadas en el chat para pegar en su `MI_CONFIG`.
 
-## Ink (la app que Lega ya usa)
+## Ink (la app que Lega usaba)
+
+**Lega desinstaló Ink el 10/10/2026.** Ya no hay conflicto. El fondo negro que había
+creado Ink (el tercero de su galería) es el que eligió para que lo pise nuestro Atajo:
+en "Establecer foto como fondo de pantalla", el parámetro del fondo abre una galería
+con miniaturas de sus lock screens y se marca uno.
+
+Lo de abajo queda como referencia.
 
 Ink hace lo mismo (fondo con el calendario). Lega la tiene instalada y no hay que
 pisarla. Se analizó su atajo ("Ink Refresh Lock Screen V2"): usa acciones propias de la
