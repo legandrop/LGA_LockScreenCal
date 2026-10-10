@@ -73,6 +73,12 @@ como opción: `eventStyle: "bar"`.
 `startInDays: 4`. **Hay que acordarse de sacarlo** (o ponerlo en 0) cuando termine de
 probar, o el fondo va a seguir arrancando 4 días adelante.
 
+**Resuelto (10/10, ~22:30):** con la v0.9 el Atajo anduvo bien en el teléfono, con
+Google y colores por evento ("funciona excelente"). No llegó a verse el fondo de error,
+así que la causa del primer fallo quedó sin identificar (probablemente la caché de
+GitHub entregando una versión intermedia). Se le pasó el cargador sin `startInDays` y
+las instrucciones de automatización por hora.
+
 **Falla en el teléfono (10/10, 22:10):** al pegar el cargador con `googleUrl` +
 `startInDays: 4`, Atajos dio "No se pudo ejecutar Run Inline Script: Script completed
 without presenting UI, triggering a text to speak or outputting a value". Con la
