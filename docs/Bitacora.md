@@ -88,6 +88,14 @@ sistema manda el backlog a "ayer"), solo las suyas o sin asignar, con circulito;
 de la etiqueta si está en `keywords`, si no el del proyecto (tabla de colores de la
 API). Probado con respuestas simuladas; **sin probar con su cuenta real**.
 
+**Duplicados por Akiflow (v0.11, 10/10):** apenas se sumó Todoist aparecieron tareas
+repetidas. Causa: cuando Lega le reserva horario a una tarea de Todoist en Akiflow
+(las que ve "bloqueadas"), Akiflow crea un evento con el mismo nombre en el
+calendario Wanka de Google. Ya se veían antes en el fondo, como eventos, sin
+circulito. Solución: si una tarea y un evento coinciden en día y nombre (sin
+mayúsculas ni puntuación del final), queda solo la tarea. Log: "Akiflow: N eventos
+repetidos de tareas".
+
 **Automatizaciones (10/10):** el Atajo de Lega se llama **`LGA_ScreenLockCal`**. Ya
 tiene una automatización confirmada por captura: "Cuándo: 07:00, diariamente",
 "Automatización: Ejecutar de inmediato", "Notificar al ejecutar" apagado. Pidió algo

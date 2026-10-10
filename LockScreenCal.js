@@ -68,7 +68,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.10";
+const VERSION = "0.11";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -469,6 +469,18 @@ async function build(W, H) {
   events = (events
     ? events.concat(phone.filter(e => !googleCals.has(e.calendar)))
     : phone).concat(tasks);
+
+  // Una tarea de Todoist con horario reservado en Akiflow tambien aparece como
+  // evento de Google con el mismo nombre (Akiflow la "bloquea" en el calendario).
+  // Queda la tarea, que es lo que hay que hacer, y se descarta el evento.
+  const norm = t => String(t).toLowerCase().replace(/\s+/g, " ").replace(/[\s.…:;,-]+$/, "").trim();
+  const dayKey = t => { const d = new Date(t); return d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate(); };
+  const taskKeys = new Set(tasks.map(t => dayKey(t.start) + "|" + norm(t.title)));
+  if (taskKeys.size) {
+    const antes = events.length;
+    events = events.filter(e => e.task || !taskKeys.has(dayKey(e.start) + "|" + norm(e.title)));
+    if (antes !== events.length) console.log("Akiflow: " + (antes - events.length) + " eventos repetidos de tareas");
+  }
 
   // El mismo evento puede venir de dos calendarios (pasa con los feriados):
   // se muestra una sola vez.
