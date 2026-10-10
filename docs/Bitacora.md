@@ -62,6 +62,12 @@ los del iPhone, y los eventos de Wanka vienen con sus colores de proyecto. "Feri
 Argentina" no está en Google: sale del iPhone. Se le pasó el cargador con `googleUrl`.
 **La URL y la clave del puente no van en este repo** (están solo en su Atajo).
 
+**Eventos pintados (v0.7, 10/10):** pedido de Lega, el fondo de cada evento va
+entero de su color (antes era una barrita). El texto va en negro o blanco según la
+luminancia del color (corte WCAG en 0.179). Sobre un evento pintado, las palabras
+clave van en negrita del color del texto (en su color no se verían). La barrita quedó
+como opción: `eventStyle: "bar"`.
+
 Riesgo a mirar: si el nombre que Google le da a un calendario no coincide con el del
 iPhone (el principal a veces se llama como el mail), `onlyCalendars` lo descarta de
 Google y sale la copia del iPhone, sin colores de evento. Se arregla agregando el

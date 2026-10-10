@@ -75,6 +75,7 @@ const MI_CONFIG = {
 | `topPercent` / `bottomPercent` | Espacio libre arriba (reloj, widgets) y abajo (linterna, cámara), en % del alto. Por defecto 33 y 13 |
 | `background`, `textColor`, `mutedColor` | Colores |
 | `showUpdated` | Mostrar `act. HH:MM` |
+| `eventStyle` | `"fill"` (por defecto): cada evento con el fondo de su color y el texto en negro o blanco según contraste. `"bar"`: barrita de color a la izquierda |
 | `googleUrl` | Colores de Google por evento (ver abajo) |
 
 Si un mismo evento viene de dos calendarios (pasa con los feriados), se muestra una sola vez.

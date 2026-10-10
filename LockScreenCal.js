@@ -41,6 +41,10 @@ const CONFIG = {
   // Muestra arriba a la derecha la hora de la ultima actualizacion.
   showUpdated: true,
 
+  // Como se pinta cada evento: "fill" = el fondo del evento entero de su color
+  // (como en Google Calendar); "bar" = una barrita de color a la izquierda.
+  eventStyle: "fill",
+
   // Palabras que se pintan de su color cada vez que aparecen en un titulo,
   // ej. { ALFA: "#8E24AA" }. Distingue mayusculas ("VA" se pinta, "va" no) y
   // solo toma palabras enteras. En el texto, un color muy oscuro se aclara
@@ -51,7 +55,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.6";
+const VERSION = "0.7";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -85,15 +89,21 @@ function drawCalendar(canvas, data) {
   };
   // Sobre negro, un violeta o un azul oscuro como texto no se lee: se mezcla
   // con blanco hasta que tenga luz suficiente. Las barras usan el color tal cual.
-  const readable = hex => {
+  const toRgb = hex => {
     let h = String(hex || "#888888").replace("#", "");
     if (h.length === 3) h = h.split("").map(c => c + c).join("");
     const n = parseInt(h.slice(0, 6), 16);
-    const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-    const lum = c => {
-      const l = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
-      return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
-    };
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const lum = c => {
+    const l = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+  };
+  // Texto sobre un evento pintado: negro o blanco, el que mas contraste tenga
+  // con ese color (criterio de contraste WCAG: el corte cae en luminancia 0.179).
+  const inkOn = hex => lum(toRgb(hex)) > 0.179 ? "#000000" : "#FFFFFF";
+  const readable = hex => {
+    const rgb = toRgb(hex);
     let mix = rgb;
     for (let t = 0; t <= 1 && lum(mix) < 0.22; t += 0.05) mix = rgb.map(v => Math.round(v + (255 - v) * t));
     return `rgb(${mix[0]},${mix[1]},${mix[2]})`;
@@ -104,8 +114,10 @@ function drawCalendar(canvas, data) {
   const kwRe = kwNames.length
     ? new RegExp(`(?<![\\p{L}\\p{N}])(${kwNames.map(esc).join("|")})(?![\\p{L}\\p{N}])`, "gu")
     : null;
-  // Titulo con las palabras clave en su color (y en negrita).
-  const drawTitle = (text, x, cy, maxW, weight, size) => {
+  // Titulo con las palabras clave en su color (y en negrita). Sobre un evento
+  // pintado (ink) van en negrita del color del texto: en su propio color no se
+  // verian, porque casi siempre es el mismo color del fondo.
+  const drawTitle = (text, x, cy, maxW, weight, size, ink) => {
     ctx.font = font(700, size); // se mide con la mas ancha para no pasarse
     const fitted = fit(text, maxW);
     const parts = kwRe ? fitted.split(kwRe) : [fitted]; // con grupo: impares = clave
@@ -113,7 +125,7 @@ function drawCalendar(canvas, data) {
       if (!part) return;
       const isKw = i % 2 === 1;
       ctx.font = font(isKw ? 700 : weight, size);
-      ctx.fillStyle = isKw ? readable(kw[part]) : o.textColor;
+      ctx.fillStyle = ink || (isKw ? readable(kw[part]) : o.textColor);
       ctx.fillText(part, x, cy);
       x += ctx.measureText(part).width;
     });
@@ -162,14 +174,19 @@ function drawCalendar(canvas, data) {
       ctx.fillText("Nada más por hoy", padX, cy);
       return;
     }
+    const fill = o.eventStyle !== "bar";
     if (e.allDay) {
-      ctx.fillStyle = rgba(e.color, 0.32);
-      pill(padX, y + 3 * s, W - 2 * padX, rowH - 6 * s, 6 * s);
-      drawTitle(e.title, padX + 10 * s, cy, W - 2 * padX - 20 * s, 600, 15);
+      ctx.fillStyle = fill ? e.color : rgba(e.color, 0.32);
+      pill(padX, y + 2 * s, W - 2 * padX, rowH - 4 * s, 6 * s);
+      drawTitle(e.title, padX + 10 * s, cy, W - 2 * padX - 20 * s, 600, 15, fill ? inkOn(e.color) : null);
       return;
     }
-    ctx.fillStyle = e.color;
-    pill(padX, y + 5 * s, 4 * s, rowH - 10 * s, 2 * s);
+    if (!fill) {
+      ctx.fillStyle = e.color;
+      pill(padX, y + 5 * s, 4 * s, rowH - 10 * s, 2 * s);
+    }
+    // Con fondo pintado la hora va pegada al margen y el evento empieza despues.
+    const timeX = fill ? padX : padX + 12 * s;
 
     const ongoing = e.start <= now && e.end > now;
     let label = hhmm(e.start);
@@ -177,10 +194,16 @@ function drawCalendar(canvas, data) {
     if (ongoing) label = "ahora";
     ctx.font = font(ongoing ? 700 : 500, 15);
     ctx.fillStyle = ongoing ? readable(e.color) : o.mutedColor;
-    ctx.fillText(label, padX + 12 * s, cy);
+    ctx.fillText(label, timeX, cy);
 
-    const x = padX + 12 * s + timeW;
-    drawTitle(e.title, x, cy, W - padX - x, 500, 16);
+    const x = timeX + timeW;
+    if (fill) {
+      ctx.fillStyle = e.color;
+      pill(x + 4 * s, y + 2 * s, W - padX - x - 4 * s, rowH - 4 * s, 6 * s);
+      drawTitle(e.title, x + 14 * s, cy, W - padX - x - 24 * s, 500, 16, inkOn(e.color));
+    } else {
+      drawTitle(e.title, x, cy, W - padX - x, 500, 16);
+    }
   };
 
   let y = top;
