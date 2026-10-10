@@ -44,6 +44,11 @@ const events = [
   allDay(4, 2, "Finde largo", C.personal),
   at(5, 12, 0, 60, "Almuerzo", C.personal),
   at(6, 10, 0, 60, "Daily ALFA", C.alfa),
+  // Tareas de Todoist: sin hora van arriba del dia; con hora, en su lugar.
+  { task: true, timed: false, title: "Mandar presupuesto ALFA", color: C.alfa, allDay: false,
+    start: new Date(2026, 9, 7).getTime(), end: new Date(2026, 9, 8).getTime() },
+  { task: true, timed: true, title: "Llamar al banco", color: "#4180FF", allDay: false,
+    start: new Date(2026, 9, 8, 13, 0).getTime(), end: new Date(2026, 9, 8, 13, 1).getTime() },
 ];
 
 (async () => {

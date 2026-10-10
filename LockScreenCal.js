@@ -18,6 +18,15 @@ const CONFIG = {
   //    Google no responde, usa todo del iPhone.
   googleUrl: "",
 
+  // Tareas de Todoist con fecha (opcional). El token se saca de Todoist:
+  // Configuracion -> Integraciones -> Desarrollador. Da acceso total a la cuenta:
+  // va solo en el MI_CONFIG de cada uno, nunca se comparte.
+  todoistToken: "",
+
+  // Solo las tareas asignadas a vos o sin asignar (en proyectos compartidos, las
+  // de los demas no se muestran).
+  todoistOnlyMine: true,
+
   // Calendarios a ignorar, por nombre tal cual aparecen en la app Calendario
   // (o en Google Calendar, si se usa googleUrl). Ej: ["Holidays in Argentina"]
   excludeCalendars: [],
@@ -59,7 +68,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.9";
+const VERSION = "0.10";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -193,21 +202,34 @@ function drawCalendar(canvas, data) {
     // Con fondo pintado la hora va pegada al margen y el evento empieza despues.
     const timeX = fill ? padX : padX + 12 * s;
 
-    const ongoing = e.start <= now && e.end > now;
+    const ongoing = !e.task && e.start <= now && e.end > now;
     let label = hhmm(e.start);
     if (e.start < dayStart) label = "…";
     if (ongoing) label = "ahora";
+    if (e.task && !e.timed) label = "";
     ctx.font = font(ongoing ? 700 : 500, 15);
     ctx.fillStyle = ongoing ? readable(e.color) : o.mutedColor;
     ctx.fillText(label, timeX, cy);
 
     const x = timeX + timeW;
+    // Las tareas llevan un circulito vacio adelante, como en Todoist.
+    const box = (cx, color) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.6 * s;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6 * s, 0, Math.PI * 2);
+      ctx.stroke();
+    };
     if (fill) {
       ctx.fillStyle = e.color;
       pill(x + 4 * s, y + 2 * s, W - padX - x - 4 * s, rowH - 4 * s, 6 * s);
-      drawTitle(e.title, x + 14 * s, cy, W - padX - x - 24 * s, 500, 16, inkOn(e.color));
+      let tx = x + 14 * s;
+      if (e.task) { box(tx + 6 * s, inkOn(e.color)); tx += 20 * s; }
+      drawTitle(e.title, tx, cy, W - padX - tx - 10 * s, 500, 16, inkOn(e.color));
     } else {
-      drawTitle(e.title, x, cy, W - padX - x, 500, 16);
+      let tx = x;
+      if (e.task) { box(tx + 6 * s, e.color); tx += 20 * s; }
+      drawTitle(e.title, tx, cy, W - padX - tx, 500, 16);
     }
   };
 
@@ -217,18 +239,22 @@ function drawCalendar(canvas, data) {
     const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d).getTime();
     const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d + 1).getTime();
     let evs = data.events.filter(e => e.start < dayEnd && e.end > dayStart);
-    if (d === 0) evs = evs.filter(e => e.allDay || e.end > now);
+    // Una tarea de hoy sigue pendiente aunque haya pasado su hora: no se oculta.
+    if (d === 0) evs = evs.filter(e => e.allDay || e.task || e.end > now);
     if (evs.length === 0 && d > 0) continue;
-    evs.sort((a, b) => (b.allDay - a.allDay) || (a.start - b.start) || a.title.localeCompare(b.title));
+    const rank = e => e.allDay ? 0 : (e.task && !e.timed) ? 1 : 2;
+    evs.sort((a, b) => (rank(a) - rank(b)) || (a.start - b.start) || a.title.localeCompare(b.title));
 
     const gap = y === top ? 0 : dayGap;
-    if (y + gap + headH + rowH > bottom) break;
+    const rows = evs.length ? evs : [null];
+    const avail = Math.floor((bottom - y - gap - headH) / rowH);
+    // Un dia que no entra entero necesita lugar para al menos un evento y el
+    // "+N mas"; si no, un encabezado con solo "+N mas" no dice nada.
+    if (avail < 1 || (rows.length > avail && avail < 2)) break;
     y += gap;
     drawHeader(d, dayStart, y);
     y += headH;
 
-    const rows = evs.length ? evs : [null];
-    const avail = Math.floor((bottom - y) / rowH);
     const shown = rows.length <= avail ? rows : rows.slice(0, avail - 1);
     for (const e of shown) { drawRow(e, y, dayStart); y += rowH; }
     if (shown.length < rows.length) {
@@ -296,6 +322,81 @@ async function loadFromGoogle() {
   return { events, calendars };
 }
 
+// Colores de proyectos y etiquetas de Todoist (tabla "Colors" de su API v1).
+const TODOIST_COLORS = {
+  berry_red: "#B8255F", red: "#DC4C3E", orange: "#C77100", yellow: "#B29104",
+  olive_green: "#949C31", lime_green: "#65A33A", green: "#369307", mint_green: "#42A393",
+  teal: "#148FAD", sky_blue: "#319DC0", light_blue: "#6988A4", blue: "#4180FF",
+  grape: "#692EC2", violet: "#CA3FEE", lavender: "#A4698C", magenta: "#E05095",
+  salmon: "#C9766F", charcoal: "#808080", grey: "#999999", taupe: "#8F7A69",
+};
+
+async function todoistGet(path, paginated) {
+  const out = [];
+  let cursor = null;
+  do {
+    let url = "https://api.todoist.com/api/v1/" + path;
+    if (paginated) url += "?limit=200" + (cursor ? "&cursor=" + encodeURIComponent(cursor) : "");
+    const req = new Request(url);
+    req.headers = { Authorization: "Bearer " + CONFIG.todoistToken };
+    req.timeoutInterval = 20;
+    const json = await req.loadJSON();
+    if (req.response.statusCode !== 200) throw new Error("Todoist HTTP " + req.response.statusCode);
+    if (!paginated) return json;
+    out.push(...(json.results || []));
+    cursor = json.next_cursor;
+  } while (cursor);
+  return out;
+}
+
+// due.date de Todoist: "2026-10-14" (sin hora), "2026-10-14T15:00:00" (hora local)
+// o "2026-10-14T18:00:00Z" (UTC, zona fija).
+function todoistDue(date) {
+  const m = date.match(/^(\d{4})-(\d\d)-(\d\d)(?:T(\d\d):(\d\d))?/);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]) - 1, Number(m[3])];
+  if (!m[4]) return { start: new Date(y, mo, d).getTime(), timed: false };
+  if (/Z$/.test(date)) return { start: new Date(date.replace(/\.\d+/, "")).getTime(), timed: true };
+  return { start: new Date(y, mo, d, Number(m[4]), Number(m[5])).getTime(), timed: true };
+}
+
+async function loadFromTodoist(now) {
+  const [me, projects, tasks] = await Promise.all([
+    todoistGet("user", false),
+    todoistGet("projects", true),
+    todoistGet("tasks", true),
+  ]);
+  const projColor = {};
+  for (const p of projects) projColor[p.id] = TODOIST_COLORS[p.color] || "#808080";
+  const kw = CONFIG.keywords || {};
+  const first = startOfDay(now);
+  first.setDate(first.getDate() + (CONFIG.startInDays || 0));
+  const last = new Date(first.getFullYear(), first.getMonth(), first.getDate() + CONFIG.maxDays);
+  const out = [];
+  for (const t of tasks) {
+    if (!t.due || t.checked) continue;
+    if (CONFIG.todoistOnlyMine && t.responsible_uid && String(t.responsible_uid) !== String(me.id)) continue;
+    const due = todoistDue(t.due.date);
+    // Las vencidas no: el lock screen es para lo que viene.
+    if (!due || due.start < first.getTime() || due.start >= last.getTime()) continue;
+    const mins = t.duration && t.duration.unit === "minute" ? t.duration.amount : 0;
+    // Color: el de la primera etiqueta que este en keywords (asi una tarea de un
+    // proyecto sale igual que sus eventos); si no, el del proyecto de Todoist.
+    const label = (t.labels || []).find(l => kw[l]);
+    out.push({
+      task: true,
+      timed: due.timed,
+      title: String(t.content || "(sin título)").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, ""),
+      start: due.start,
+      end: due.timed ? due.start + Math.max(mins, 1) * 60000 : due.start + 86400000,
+      allDay: false,
+      color: label ? kw[label] : (projColor[t.project_id] || "#808080"),
+      calendar: "Todoist",
+    });
+  }
+  return out;
+}
+
 async function renderImage(payload, W, H) {
   const wv = new WebView();
   await wv.loadHTML('<html><body style="margin:0;background:#000"><canvas id="c"></canvas></body></html>');
@@ -356,11 +457,18 @@ async function build(W, H) {
   }
   const phone = await loadFromIPhone(now);
   console.log("iPhone: " + phone.length + " eventos");
+  let tasks = [];
+  if (CONFIG.todoistToken) {
+    try {
+      tasks = await loadFromTodoist(now);
+      console.log("Todoist: " + tasks.length + " tareas");
+    } catch (err) { console.error(err); note += " · sin Todoist"; }
+  }
   // Del iPhone solo lo que Google no trajo: si no, cada evento saldria dos veces
   // y el de Google es el que tiene el color del evento.
-  events = events
+  events = (events
     ? events.concat(phone.filter(e => !googleCals.has(e.calendar)))
-    : phone;
+    : phone).concat(tasks);
 
   // El mismo evento puede venir de dos calendarios (pasa con los feriados):
   // se muestra una sola vez.

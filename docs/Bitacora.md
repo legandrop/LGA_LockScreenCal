@@ -79,6 +79,15 @@ así que la causa del primer fallo quedó sin identificar (probablemente la cach
 GitHub entregando una versión intermedia). Se le pasó el cargador sin `startInDays` y
 las instrucciones de automatización por hora.
 
+**Todoist (v0.10, 10/10):** Lega pidió sumar sus tareas con fecha. Se leen desde el
+teléfono con la API v1 de Todoist (`/api/v1/tasks`, `/projects`, `/user`, con
+`Authorization: Bearer`, paginado por `next_cursor`; la REST v2 contesta 410). El
+token es el mismo `TODOIST_API_TOKEN` que usa LGA Assistant (está en su `.env`) y va
+en `MI_CONFIG.todoistToken`. Se muestran de hoy en adelante (no las vencidas: su
+sistema manda el backlog a "ayer"), solo las suyas o sin asignar, con circulito; color
+de la etiqueta si está en `keywords`, si no el del proyecto (tabla de colores de la
+API). Probado con respuestas simuladas; **sin probar con su cuenta real**.
+
 **Automatizaciones (10/10):** el Atajo de Lega se llama **`LGA_ScreenLockCal`**. Ya
 tiene una automatización confirmada por captura: "Cuándo: 07:00, diariamente",
 "Automatización: Ejecutar de inmediato", "Notificar al ejecutar" apagado. Pidió algo

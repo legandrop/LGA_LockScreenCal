@@ -78,8 +78,27 @@ const MI_CONFIG = {
 | `showUpdated` | Mostrar `act. HH:MM` |
 | `eventStyle` | `"fill"` (por defecto): cada evento con el fondo de su color y el texto en negro o blanco según contraste. `"bar"`: barrita de color a la izquierda |
 | `googleUrl` | Colores de Google por evento (ver abajo) |
+| `todoistToken` | Suma las tareas de Todoist con fecha (ver abajo) |
+| `todoistOnlyMine` | Solo tus tareas o las sin asignar. Por defecto `true` |
 
 Si un mismo evento viene de dos calendarios (pasa con los feriados), se muestra una sola vez.
+
+## Tareas de Todoist (opcional)
+
+Con tu token de Todoist, el fondo suma tus tareas con fecha de hoy en adelante (las
+vencidas no). Llevan un circulito adelante; las que no tienen hora van arriba del
+día. El color es el de la primera etiqueta que esté en `keywords` o, si no, el del
+proyecto de Todoist.
+
+El token está en Todoist, en la configuración, sección de integraciones para
+desarrolladores. Agregalo en `MI_CONFIG`:
+
+```js
+todoistToken: "tu-token",
+```
+
+El token da acceso total a tu cuenta de Todoist: no compartas el Atajo con el token
+puesto.
 
 ## Colores de Google por evento (opcional)
 
