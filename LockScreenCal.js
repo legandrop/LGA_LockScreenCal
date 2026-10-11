@@ -68,7 +68,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.11";
+const VERSION = "0.12";
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -405,8 +405,14 @@ async function renderImage(payload, W, H) {
     c.width = ${W}; c.height = ${H};
     drawCalendar(c, ${JSON.stringify(payload)});
     c.toDataURL("image/png").split(",")[1];`;
+  // El canvas ya entrega el PNG comprimido. Decodificarlo como Image aca
+  // consume memoria nativa de la extension de Atajos sin aportar nada: despues
+  // habria que volver a codificarlo para devolver exactamente el mismo PNG.
   const b64 = await wv.evaluateJavaScript(js, false);
-  return Image.fromData(Data.fromBase64String(b64));
+  if (typeof b64 !== "string" || !b64.startsWith("iVBORw0KGgo")) {
+    throw new Error("El dibujo no devolvio un PNG valido");
+  }
+  return b64;
 }
 
 // Si algo falla, igual se entrega un fondo con el error escrito: sin salida,
@@ -428,17 +434,19 @@ function errorImage(msg, W, H) {
 async function main() {
   const res = Device.screenResolution();
   const W = Math.round(res.width), H = Math.round(res.height);
-  let img;
+  let b64;
   try {
-    img = await build(W, H);
+    b64 = await build(W, H);
   } catch (err) {
     console.error(err);
-    img = errorImage(String((err && err.message) || err), W, H);
+    const img = errorImage(String((err && err.message) || err), W, H);
+    b64 = Data.fromPNG(img).toBase64String();
   }
   // Atajos no acepta una imagen como salida de Scriptable: va como texto
   // base64 y el Atajo la decodifica antes de ponerla de fondo.
-  Script.setShortcutOutput(Data.fromPNG(img).toBase64String());
-  if (config.runsInApp) await QuickLook.present(img, true);
+  Script.setShortcutOutput(b64);
+  // Solo dentro de la app hace falta una imagen nativa para la vista previa.
+  if (config.runsInApp) await QuickLook.present(Image.fromData(Data.fromBase64String(b64)), true);
   Script.complete();
 }
 
@@ -499,9 +507,9 @@ async function build(W, H) {
     opts: CONFIG,
     footer: CONFIG.showUpdated ? `act. ${two(now.getHours())}:${two(now.getMinutes())}${note}` : "",
   };
-  const img = await renderImage(payload, W, H);
+  const b64 = await renderImage(payload, W, H);
   console.log("Dibujo listo: " + W + "x" + H);
-  return img;
+  return b64;
 }
 
 await main();

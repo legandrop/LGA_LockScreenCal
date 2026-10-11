@@ -7,12 +7,19 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 
 ## Resumen
 
-**Funciona en el iPhone de Lega**, de punta a punta: Google con el color de cada
-evento, tareas de Todoist, palabras clave, automatizaciones y sin cartel al correr.
-Lo que falta es **para compartirlo** (ver "Pendiente").
+Funcionaba en el iPhone de Lega con Google, Todoist y las automatizaciones. El
+10/10 reporto otra vez el corte de Scriptable sin salida desde el editor de Atajos.
+La captura no identifica la causa. **v0.12** elimina la conversion del PNG base64
+a imagen nativa y de vuelta a PNG al entregarlo a Atajos, para reducir la memoria
+de la extension. Sintaxis, entrega simulada y dibujo en Chromium verificados;
+**falta confirmar la nueva version en el iPhone**.
 
 ## Pendiente
 
+0. **Volver a ejecutar el Atajo con v0.12.** El cargador existente la baja solo.
+   Si vuelve el corte sin salida, correr el mismo cargador dentro de la app
+   Scriptable y revisar en que etapa terminan los logs; memoria y tiempo de
+   ejecucion siguen siendo hipotesis, no un diagnostico confirmado por la captura.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
@@ -91,9 +98,12 @@ Regla del repo: no inventar nombres de botones (ver `CLAUDE.md`). Estos están v
   intermedia). Desde entonces `main()` atrapa cualquier error y entrega un fondo con
   el error escrito en rojo (dibujado con `DrawContext`, por si lo que falla es el
   WebView), y hay logs por etapa ("Google: …", "iPhone: …", "Todoist: …", "Dibujo
-  listo"). Si volviera a pasar **sin** fondo de error, el proceso se está cortando
-  (memoria): probar el cargador como script dentro de la app Scriptable para ver los
-  logs.
+  listo"). Volvio a pasar el 10/10. v0.12 entrega directamente el base64 del
+  canvas: la imagen nativa se crea solo para la vista previa dentro de la app.
+  Esto evita una conversion innecesaria en la extension, que tiene poca memoria
+  (ver https://docs.scriptable.app/webview/#loadfile). No hay logs del corte real
+  que confirmen memoria como causa. Si sigue, probar el cargador como script dentro
+  de la app Scriptable para ver los logs.
 - **Tareas repetidas por Akiflow:** Akiflow crea en Google un evento con el nombre de
   cada tarea de Todoist a la que se le reserva horario (las que Lega ve
   "bloqueadas"). Si una tarea y un evento coinciden en día y nombre (sin mayúsculas
@@ -113,6 +123,9 @@ Regla del repo: no inventar nombres de botones (ver `CLAUDE.md`). Estos están v
   muy frecuentes puede tocar la cuota diaria de Apps Script.
 - Lo que se pushea a `main` les llega a todos en la próxima corrida: un error de
   sintaxis rompe el fondo de todos (ver reglas en `CLAUDE.md`).
+- `node tools/check-shortcut.cjs` verifica con APIs simuladas la salida base64 sin
+  decodificacion nativa en Atajos, la vista en la app, el fondo de error y el
+  cargador con/sin internet. No reproduce los limites de memoria/tiempo de iOS.
 
 ## Decisiones tomadas (no re-litigar)
 

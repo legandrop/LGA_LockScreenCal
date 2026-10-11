@@ -177,7 +177,7 @@ Si en el paso 5 no aparece "Cualquier usuario", tu cuenta es de una empresa
 |---|---|
 | El lock screen muestra otro fondo | El Atajo pinta el fondo elegido en la acción, no el activo. Mantené apretado el lock screen y elegí ese |
 | Aparece un cartel con ✓ y "Listo" cada vez que corre | Apagá **"Mostrar al ejecutar"** en la acción "Run with Parameter" (debajo de "Texts" y "URLs") |
-| "Script completed without presenting UI… or outputting a value" | El script se cortó antes de terminar. Volvé a correrlo en unos minutos. Si sigue, avisá al que lo mantiene |
+| "Script completed without presenting UI… or outputting a value" | Scriptable terminó sin entregar la imagen; el mensaje no dice la causa. v0.12 reduce la memoria usada al entregarla. Corré de nuevo con internet para bajar la actualización. Si sigue, mandá una captura al que lo mantiene |
 | El fondo sale negro con un error en rojo | Es el error real, escrito para poder leerlo: mandale una captura al que lo mantiene |
 | Arriba dice `sin Google` o `sin Todoist` | No pudo conectarse. Revisá la URL o el token en `MI_CONFIG`. El resto del fondo sale igual |
 | Faltan eventos | Revisá que el calendario esté en el iPhone (app Calendario → Calendarios) y que su nombre esté en `onlyCalendars` |
@@ -220,6 +220,7 @@ corrida: un error rompe el fondo de todos. Antes de subir:
 
 ```sh
 node --input-type=module --check < LockScreenCal.js
+node tools/check-shortcut.cjs   # entrega a Atajos con APIs simuladas
 npm i playwright && npx playwright install chromium
 node tools/preview.cjs          # -> preview/preview.png
 ```
