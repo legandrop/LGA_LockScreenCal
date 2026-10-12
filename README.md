@@ -215,8 +215,8 @@ o no haber podido guardar el archivo.
 Desde v0.15 también conserva un historial por corrida, incluidos los fondos
 reutilizados. v0.16 permite usar un receptor administrado para consultar los
 registros directamente, sin copiar resultados del teléfono. Su despliegue está
-probado con un registro sintético; falta habilitar el acceso del teléfono y
-confirmar una corrida real. Ver [Registros y mantenimiento remoto](docs/Logs.md).
+probado con registros sintéticos y la recepción ya exige clave sin necesitar
+iniciar sesión; falta confirmar una corrida real del teléfono. Ver [Registros y mantenimiento remoto](docs/Logs.md).
 La consulta de Google espera hasta 12 s con un temporizador antes de continuar
 con los calendarios del iPhone; iOS puede suspender ese temporizador.
 

@@ -208,7 +208,7 @@ function createTelemetry(opts, version, initial) {
       }));
       const req = new Request(collector || opts.googleUrl + (opts.googleUrl.includes("?") ? "&" : "?") + "action=logs");
       req.method = "POST";
-      req.headers = { "Content-Type": "application/json" };
+      req.headers = { "Content-Type": "application/json", "User-Agent": "LockScreenCal/" + version };
       if (collector) {
         // Solo este servicio puede recibir la clave derivada; no URLs arbitrarias.
         if (collector !== "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs") throw new Error("Receptor no permitido");

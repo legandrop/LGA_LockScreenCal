@@ -1,6 +1,6 @@
 # Receptor de registros
 
-Servicio construido con la habilidad Sites. Proyecto propietario privado:
+Servicio construido con la habilidad Sites. Proyecto administrado por su propietario:
 `appgprj_6acd3bd6e5c48191a2340ed059cf9a90`.
 
 - URL: https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site
@@ -14,11 +14,16 @@ Servicio construido con la habilidad Sites. Proyecto propietario privado:
 
 ## Estado y acceso
 
-Despliegue privado correcto. POST sintetico confirmado y leido directamente en
-D1. Todavia no llegan registros reales del telefono. No se amplio la audiencia:
-para la recepcion desde Atajos sin bypass de plataforma hace falta autorizacion
-explicita del usuario. Incluso con acceso publico al sitio, `/api/runs` exige
-la clave de escritura; no existe API de lectura publica del historial.
+Recepcion publica habilitada el 12/10/2026 tras la respuesta afirmativa de Lega
+al pedido de activacion. La lectura de D1 sigue reservada a la administracion.
+Probado sin bypass de plataforma: envio sin clave y con clave incorrecta devuelve
+401; clave valida devuelve 200 y se confirma en D1; GET a la ruta devuelve 405.
+Solo hay registros sinteticos de prueba, no corridas reales del telefono.
+
+Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error
+1010, antes de entrar al Worker. Con User-Agent `LockScreenCal/0.16` llegaron al
+receptor correctamente. El cliente de registros se identifica con su version.
+Ese bloqueo de la prueba no demuestra la causa del error reportado en Atajos.
 
 ## Consultar sin involucrar al usuario
 

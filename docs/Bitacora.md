@@ -26,7 +26,8 @@ exports como procedimiento habitual. El bloque `google/Logs.gs` no tiene desplie
 real confirmado y los envios observados fallaban; no depender de que Lega edite
 Apps Script para habilitar registros.
 
-Se creo y publico un receptor propio con Sites, actualmente privado. La escritura
+Se creo y publico un receptor propio con Sites; su recepcion publica ya esta
+habilitada, con lectura reservada a la administracion. La escritura
 requiere clave derivada del token local; no hay API publica de lectura. Guarda
 solo etapas, tiempos, cantidades, codigos y tamanos, hasta 500 corridas. Se verifico
 un POST real y su lectura directa mediante las herramientas de administracion de
@@ -40,17 +41,18 @@ real, se construyo y se desplego correctamente. Falta un registro real del telef
 
 ## Pendiente
 
-0. **Completar la activacion del receptor.** El sitio conserva su audiencia privada.
-   Para usar la recepcion desde Atajos sin una nueva credencial de servicio,
-   hace falta que Lega autorice explicitamente el acceso publico al endpoint de
-   escritura autenticado. Preparado y probado antes de pedir esa decision.
-   Despues de esa autorizacion, cambiar acceso con Sites y verificar rechazo de
-   envios sin clave y escritura valida sin bypass de plataforma. Una sola linea
-   `logCollector` en su MI_CONFIG selecciona el receptor; el cargador ya instalado
-   descarga el resto. No necesita otro script de diagnostico ni cambios en Google.
-   Consultar nosotros D1 para confirmar la primera corrida real; no declararlo
-   activo hasta recibirla. Los registros conservan la limitacion de que no ven
-   errores de las acciones posteriores de Atajos.
+0. **Confirmar la conexion del telefono al receptor.** Lega respondio afirmativamente
+   al pedido de activacion; se habilito acceso publico de plataforma conservando
+   autenticacion de escritura y lectura privada. Probado sin bypass: 401 sin clave
+   o con clave incorrecta, 200 con clave valida, 405 al intentar lectura por GET.
+   Lega abrio la pagina y ejecuto el Atajo, que volvio a fallar. No hay corridas
+   reales recibidas todavia; abrir la pagina no configura el cargador del telefono.
+   La opcion `logCollector` en su MI_CONFIG selecciona el receptor. Mantener
+   `logRemote: true`; no pedir otro visor ni cambios en Google. Consultar nosotros
+   D1 para confirmar la primera corrida real. No atribuir el error de Atajos al
+   403 de Python: ese rechazo fue de nuestro cliente de prueba y se resolvio con
+   identificacion User-Agent. El calendario captura fallos del envio de registros
+   y conserva pendientes, sin propagarlos voluntariamente a la salida.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice

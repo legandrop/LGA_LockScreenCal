@@ -13,9 +13,9 @@ del puente de calendario de Google. El receptor conserva hasta 500 corridas; el
 asistente las consulta directamente con herramientas de Sites. No se necesita
 instalar un visor ni copiar resultados desde el telefono.
 
-El receptor esta desplegado y probado con un registro sintetico, pero conserva
-acceso privado de plataforma. Su activacion para el telefono requiere resolver
-ese acceso y confirmar la primera corrida real. Ver [Receptor.md](Receptor.md).
+El receptor esta desplegado y probado con registros sinteticos. La recepcion ya
+esta accesible sin sesion, exige clave y la lectura sigue privada. Falta confirmar
+la primera corrida real del telefono. Ver [Receptor.md](Receptor.md).
 
 Con el acceso listo, el usuario conserva su MI_CONFIG y agrega una sola opcion:
 
