@@ -35,9 +35,11 @@ corrida del telefono con v0.17; no confundir las pruebas sinteticas con la
 validacion del Atajo. El cargador instalado descarga esta mejora automaticamente.
 
 v0.18 agrega envios del inicio actual y del estado previo al WebView, y prioriza
-el intento actual sobre una cola de pendientes. La ultima comprobacion todavia
-no encontro corridas reales v0.17/v0.18; solo pruebas de nube. No declarar activo
-el circuito del telefono hasta verlo en D1. Un corte antes de ejecutar la fabrica
+el intento actual sobre una cola de pendientes. La comprobacion posterior encontro una
+corrida real v0.18 a las 18:19 locales: marca de inicio aceptada en D1 y cuatro
+corridas antiguas recuperadas. No se recibio su estado final. Desde v0.19 se
+priorizan pendientes recientes para recuperar el ultimo intento antes que la
+cola vieja. Un corte antes de ejecutar la fabrica
 remota de telemetria queda fuera de su alcance.
 
 Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error

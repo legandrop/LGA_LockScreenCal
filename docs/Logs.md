@@ -14,8 +14,8 @@ asistente las consulta directamente con herramientas de Sites. No se necesita
 instalar un visor ni copiar resultados desde el telefono.
 
 El receptor esta desplegado y probado con registros sinteticos. La recepcion ya
-esta accesible sin sesion, exige clave y la lectura sigue privada. Falta confirmar
-la primera corrida real del telefono. Ver [Receptor.md](Receptor.md).
+esta accesible sin sesion, exige clave y la lectura sigue privada. Se recibio una
+corrida real v0.18 con su marca de inicio; falta su estado posterior. Ver [Receptor.md](Receptor.md).
 
 Con el acceso listo, el usuario conserva su MI_CONFIG y agrega una sola opcion:
 
@@ -40,7 +40,9 @@ Todoist tampoco se transmite. La clave de escritura no concede lectura.
 Los lotes tienen hasta cinco corridas. Desde v0.18 se prioriza la corrida actual,
 se intenta enviar su inicio antes de consultar calendarios, un punto antes del
 WebView y el estado final antes del retorno. Cada lote tambien puede recuperar
-pendientes anteriores. El intento actual tambien se envia desde memoria si no
+pendientes anteriores. Desde v0.19 se recuperan primero los pendientes mas
+recientes, para consultar el ultimo intento sin esperar a vaciar la cola antigua.
+El intento actual tambien se envia desde memoria si no
 pudo guardarse localmente. El envio espera hasta 2 s con
 Timer, ademas del timeout de inactividad de Request. Si falla, se marca pendiente
 y se reintenta. El temporizador no cancela la red nativa y no funciona mientras

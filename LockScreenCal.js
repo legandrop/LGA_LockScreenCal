@@ -73,7 +73,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.18";
+const VERSION = "0.19";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -197,8 +197,9 @@ function createTelemetry(opts, version, initial) {
       pending = [record, ...list().filter(r => r.id !== record.id)].filter(r =>
         Array.isArray(r.events) && r.events.length && (!previousOnly || r.id !== record.id) &&
         (read(syncFile(r.id))?.revision || 0) < (r.revision || r.events.length))
-        // El intento actual no debe quedar detras de una cola de pendientes.
-        .sort((a, b) => Number(b.id === record.id) - Number(a.id === record.id) || a.startedAt - b.startedAt).slice(0, 5);
+        // Primero el intento actual y despues los pendientes mas recientes:
+        // interesa recuperar el fallo anterior sin vaciar primero toda la cola.
+        .sort((a, b) => Number(b.id === record.id) - Number(a.id === record.id) || b.startedAt - a.startedAt).slice(0, 5);
       if (!pending.length) return;
       // Solo se transmiten datos tecnicos. No se copian opciones, mensajes de
       // excepcion ni campos arbitrarios de los archivos locales.

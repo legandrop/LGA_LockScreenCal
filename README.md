@@ -216,7 +216,8 @@ Desde v0.15 también conserva un historial por corrida, incluidos los fondos
 reutilizados. v0.16 permite usar un receptor administrado para consultar los
 registros directamente, sin copiar resultados del teléfono. Su despliegue está
 probado con registros sintéticos y la recepción ya exige clave sin necesitar
-iniciar sesión; falta confirmar una corrida real del teléfono. Ver [Registros y mantenimiento remoto](docs/Logs.md).
+iniciar sesión. Ya llegó la marca de inicio de una corrida real del teléfono;
+falta comprobar su final y la estabilidad del Atajo. Ver [Registros y mantenimiento remoto](docs/Logs.md).
 La consulta de Google espera hasta 12 s con un temporizador antes de continuar
 con los calendarios del iPhone; iOS puede suspender ese temporizador.
 

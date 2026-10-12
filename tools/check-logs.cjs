@@ -130,15 +130,21 @@ const sync = id => JSON.parse(files.get("/cache/LockScreenCal-logs/" + id + ".sy
   for (const secret of ["SECRET_EVENT", "SECRET_PROJECT", "SECRET_TODOIST", "SECRET_NETWORK_MESSAGE", "test-token"]) {
     assert.ok(!transmitted.includes(secret), "Dato privado transmitido: " + secret);
   }
+  // Aislar esta prueba de los timestamps futuros usados para retencion arriba.
+  properties.clear();
   options.logCollector = "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs";
   // Una cola larga no debe impedir que la corrida actual deje su primera marca.
   for (let i = 0; i < 8; i++) {
     const backlog = newTrace({ id: "backlog-" + i, startedAt: Date.now() - 10000 + i, events: [] });
     backlog.event("loader_start");
   }
+  const recent = newTrace({ id: "recent-interrupted", startedAt: Date.now() - 1, events: [] });
+  recent.event("render_start");
   const managed = newTrace(); managed.event("loader_start");
   await managed.flush();
   assert.equal(requests.at(-1).runs[0].id, managed.id, "La corrida actual debe tener prioridad sobre pendientes");
+  assert.equal(requests.at(-1).runs[1].id, recent.id, "El ultimo intento interrumpido debe recuperarse antes de los antiguos");
+  assert.equal(server.readLogRuns_().find(r => r.id === recent.id).events.at(-1).stage, "render_start");
   assert.equal(sync(managed.id).revision, 1, "El receptor propio debe confirmar la corrida con la clave derivada");
   managed.event("script_start"); hanging = true;
   await managed.flush();

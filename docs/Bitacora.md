@@ -31,43 +31,39 @@ habilitada, con lectura reservada a la administracion. La escritura
 requiere clave derivada del token local; no hay API publica de lectura. Guarda
 solo etapas, tiempos, cantidades, codigos y tamanos, hasta 500 corridas. Se verifico
 un POST real y su lectura directa mediante las herramientas de administracion de
-D1. Fue un registro sintetico, no del iPhone. Ver `docs/Receptor.md` para identidad,
+D1. Ya se recibio ademas una corrida real del iPhone v0.18, solo con el inicio. Ver `docs/Receptor.md` para identidad,
 ubicacion del proyecto, acceso y procedimiento de consulta.
 
 Sintaxis, entrega simulada, fallback de Google que nunca responde, plazos de logs,
 SHA-256, limpieza de temporizadores, reintentos, revisiones, privacidad y retencion
 verificados. Vista previa de Chromium revisada. El receptor se probo con SQLite
-real, se construyo y se desplego correctamente. Falta un registro real del telefono.
+real, se construyo y se desplego correctamente. Falta recibir el estado posterior
+al inicio de la corrida real v0.18.
 
 ## Pendiente
 
-0. **Confirmar recepcion real del iPhone antes de pedir mas pruebas.** Lega
-   volvio a ejecutar y reporto el error de Run Inline Script. Al consultar el
-   receptor no habia un registro de esa corrida ni peticiones nuevas: las ultimas
-   reales seguian siendo v0.16, rechazadas con 401. Solo habia pruebas sinteticas
-   v0.17 aceptadas desde la nube. No decir que el circuito ya esta confirmado ni
-   atribuir el error a red, memoria o Google. Se reconocio que se pidieron pruebas
-   antes de confirmar los registros reales. No pedir mas codigo ni exports.
-   v0.18 intenta enviar el inicio actual antes de Device/calendarios y el estado
-   justo antes del WebView. Prioriza el intento actual sobre pendientes anteriores
-   para que una cola larga no oculte la corrida que queremos diagnosticar. Conserva
-   limites de 2 s por envio y no detiene la salida si falla el receptor. El primer
-   envio usa el registro en memoria; no depende de releer su archivo local si
-   fallo la escritura. Esa recuperacion se verifica con almacenamiento indisponible. Cada
-   render agrega un envio previo: no interpretar esto como una solucion del fallo
-   de Atajos. Pruebas verifican que inicio y render_start llegan antes de dibujar,
-   y que la corrida actual queda primera aun con una cola larga. El cargador que
-   ya tiene descarga estos cambios; falta validacion real del telefono.
-   Lo que se corta antes de descargar y ejecutar el archivo remoto no puede
-   enviar esa telemetria. Tampoco captura errores de Base64/aplicar fondo ni
-   identifica automaticamente una terminacion de iOS. Si continua sin llegar ni
-   una marca, revisar el limite del cargador/extension antes de seguir cambiando
-   el calendario a ciegas. GitHub raw puede entregar una copia anterior por cache.
-   La clave del receptor ya se corrigio usando el token exacto compartido; la
-   asignacion de headers completos esta corregida desde v0.17. No hacer que Lega
-   vuelva a configurar opciones correctas. El puente exacto de Google respondio
-   JSON valido en 9.1 s desde la nube; eso no demuestra el estado de la ultima
-   peticion del telefono.
+0. **Recuperar el ultimo estado local y hacer una sola ejecucion aislada.**
+   Ya hay una corrida real v0.18 del iPhone, a las 18:19 locales del 12/10:
+   descarga en 554 ms y marca script_start en 564 ms. El receptor acepto el POST
+   con 200 y guardo esa marca junto con cuatro corridas antiguas v0.15. Solo llego
+   el inicio de esa corrida; no se conoce su ultimo estado local ni se puede
+   afirmar que nunca consulto calendarios. No atribuirlo a Google o memoria.
+   En logs del Worker, a las 18:19:16.548 y .557, llegaron peticiones v0.18 (200,
+   con autorizacion) y v0.16 (401, sin autorizacion) desde la misma conexion,
+   sin la firma de nuestras pruebas de nube. Esto muestra trafico de versiones
+   distintas casi simultaneo; no prueba por si solo la causa del error de Atajos.
+   v0.19 prioriza el intento actual y despues los pendientes MAS RECIENTES, para
+   recuperar el ultimo fallo sin esperar a subir todo el historial viejo. Probado
+   con una cola larga y una corrida interrumpida reciente. Llega sin pegar codigo.
+   La prueba preparada consiste en pausar temporalmente la automatizacion al salir
+   de WhatsApp, cerrar Atajos y Scriptable desde el selector de apps y ejecutar
+   una sola vez desde Atajos. Eso reduce actividad paralela y permite consultar
+   directamente el intento nuevo y el anterior, si pudo persistirse. No pedir
+   exports ni repetir en bucle. La estabilidad no esta confirmada.
+   Si el registro anterior llega a loader_return_prepared y Atajos reporto falta
+   de salida, revisar la entrega externa del cargador: hoy usa return y no llama
+   al setter nativo en el nivel exterior. Si se interrumpe antes, diagnosticar
+   la ultima etapa real en lugar de cambiar la entrega sin esa evidencia.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
