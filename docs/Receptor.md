@@ -34,6 +34,12 @@ sintetico al receptor real; se confirmo revision 2 y se leyo desde D1. Falta una
 corrida del telefono con v0.17; no confundir las pruebas sinteticas con la
 validacion del Atajo. El cargador instalado descarga esta mejora automaticamente.
 
+v0.18 agrega envios del inicio actual y del estado previo al WebView, y prioriza
+el intento actual sobre una cola de pendientes. La ultima comprobacion todavia
+no encontro corridas reales v0.17/v0.18; solo pruebas de nube. No declarar activo
+el circuito del telefono hasta verlo en D1. Un corte antes de ejecutar la fabrica
+remota de telemetria queda fuera de su alcance.
+
 Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error
 1010, antes de entrar al Worker. Con User-Agent `LockScreenCal/0.16` llegaron al
 receptor correctamente. El cliente de registros se identifica con su version.

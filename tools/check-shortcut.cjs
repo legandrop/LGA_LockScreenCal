@@ -15,7 +15,7 @@ const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 
 const epoch = Date.now();
 async function check({ inApp = false, renderFails = false, invalidOutput = false, useLoader = false, offline = false,
-  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false, googleNeverResponds = false } = {}) {
+  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false, googleNeverResponds = false, remoteRuns } = {}) {
   const calls = [];
   let output;
   let errorText = "";
@@ -30,7 +30,7 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     console: { log() {}, error() {} },
     config: { runsInApp: inApp },
     Timer: { schedule(ms, repeat, callback) {
-      assert.equal(ms, 12000);
+      assert.ok([12000, 2000].includes(ms));
       const handle = setTimeout(callback, 0);
       return { invalidate() { clearTimeout(handle); } };
     } },
@@ -82,6 +82,13 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     }) },
     Request: class {
       async loadJSON() {
+        if (remoteRuns && this.method === "POST") {
+          assert.match(this.headers.Authorization, /^Bearer [a-f0-9]{64}$/);
+          const batch = JSON.parse(this.body).runs;
+          remoteRuns.push(...batch);
+          return { accepted: batch.map(r => ({ id: r.id, count: r.events.length, revision: r.revision })) };
+        }
+        if (remoteRuns) return { events: [], calendars: [] };
         assert.equal(googleNeverResponds, true);
         return new Promise(() => {});
       }
@@ -94,7 +101,8 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
       }
     },
   });
-  const returned = await vm.runInContext("(async () => {\n" + (useLoader ? loader : source) + "\n})()", context);
+  const configuredLoader = loader.replace(/const MI_CONFIG = \{\s*\};/, "const MI_CONFIG = " + JSON.stringify(overrides) + ";");
+  const returned = await vm.runInContext("(async () => {\n" + (useLoader ? configuredLoader : source) + "\n})()", context);
   assert.equal(useLoader ? returned : output, png, "Atajos debe recibir el base64 del PNG");
   if (useLoader) {
     assert.equal(output, undefined, "La salida nativa no debe indicarse desde la funcion descargada");
@@ -143,6 +151,15 @@ async function readDiagnostic(files) {
   await check({ renderFails: true });
   await check({ invalidOutput: true });
   await check({ useLoader: true });
+  const remoteRuns = [];
+  await check({ useLoader: true, remoteRuns,
+    overrides: { logRemote: true, logCollector: "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs", googleUrl: "https://example.test/calendar?token=test-token" },
+    beforeRender: () => {
+      assert.ok(remoteRuns.some(r => r.events.some(e => e.stage === "script_start")), "El inicio debe enviarse antes del dibujo");
+      assert.equal(remoteRuns.at(-1).events.at(-1).stage, "render_start", "La etapa previa al WebView debe llegar sin esperar el PNG");
+      assert.ok(!remoteRuns.some(r => r.events.some(e => e.stage === "output_call")));
+    },
+  });
   await check({ useLoader: true, offline: true });
   await check({ useLoader: true, inApp: true });
   await check({ useLoader: true, renderFails: true });

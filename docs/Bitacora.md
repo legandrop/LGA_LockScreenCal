@@ -41,25 +41,31 @@ real, se construyo y se desplego correctamente. Falta un registro real del telef
 
 ## Pendiente
 
-0. **Confirmar la primera corrida real almacenada con v0.17.** El cargador de
-   Lega esta bien configurado y no requiere cambios. Se corrigio una clave del
-   servidor transcrita incorrectamente y se verifico el receptor con la correcta.
-   Lega confirmo despues una ejecucion sin error; la estabilidad sigue sin probar.
-   Sus peticiones v0.16 continuaron devolviendo 401: los logs del Worker muestran
-   que no incluyen Authorization. El cliente hacia `req.headers.Authorization =`
-   despues de asignar el diccionario; eso no actualizaba los headers nativos.
-   v0.17 arma el diccionario completo y lo asigna una vez. La prueba que simula
-   getters como copias fallo con v0.16 y pasa con la correccion. Ademas se ejecuto
-   la fabrica real de telemetria en la nube con ese puente y el receptor real:
-   confirmo revision 2 y se leyo el registro sintetico en D1. No es una corrida
-   del iPhone. La correccion llega por GitHub sin pegar codigo; falta comprobar
-   la primera peticion real v0.17 y leer las corridas pendientes. Se recomendo uso
-   normal en lugar de multiples pruebas antes de verificar la recepcion.
-   El puente exacto de Google respondio JSON valido en 9.1 s desde la nube.
-   No atribuir el error del fondo al fallo de logs: el cliente captura fallos de
-   envio y conserva los registros pendientes. No pedir opciones que ya tiene,
-   otro visor ni cambios en Apps Script. Los errores posteriores de Base64 y de
-   aplicar el fondo siguen fuera del alcance de estos registros.
+0. **Confirmar recepcion real del iPhone antes de pedir mas pruebas.** Lega
+   volvio a ejecutar y reporto el error de Run Inline Script. Al consultar el
+   receptor no habia un registro de esa corrida ni peticiones nuevas: las ultimas
+   reales seguian siendo v0.16, rechazadas con 401. Solo habia pruebas sinteticas
+   v0.17 aceptadas desde la nube. No decir que el circuito ya esta confirmado ni
+   atribuir el error a red, memoria o Google. Se reconocio que se pidieron pruebas
+   antes de confirmar los registros reales. No pedir mas codigo ni exports.
+   v0.18 intenta enviar el inicio actual antes de Device/calendarios y el estado
+   justo antes del WebView. Prioriza el intento actual sobre pendientes anteriores
+   para que una cola larga no oculte la corrida que queremos diagnosticar. Conserva
+   limites de 2 s por envio y no detiene la salida si falla el receptor. Cada
+   render agrega un envio previo: no interpretar esto como una solucion del fallo
+   de Atajos. Pruebas verifican que inicio y render_start llegan antes de dibujar,
+   y que la corrida actual queda primera aun con una cola larga. El cargador que
+   ya tiene descarga estos cambios; falta validacion real del telefono.
+   Lo que se corta antes de descargar y ejecutar el archivo remoto no puede
+   enviar esa telemetria. Tampoco captura errores de Base64/aplicar fondo ni
+   identifica automaticamente una terminacion de iOS. Si continua sin llegar ni
+   una marca, revisar el limite del cargador/extension antes de seguir cambiando
+   el calendario a ciegas. GitHub raw puede entregar una copia anterior por cache.
+   La clave del receptor ya se corrigio usando el token exacto compartido; la
+   asignacion de headers completos esta corregida desde v0.17. No hacer que Lega
+   vuelva a configurar opciones correctas. El puente exacto de Google respondio
+   JSON valido en 9.1 s desde la nube; eso no demuestra el estado de la ultima
+   peticion del telefono.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice

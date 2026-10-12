@@ -73,7 +73,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.17";
+const VERSION = "0.18";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -193,7 +193,9 @@ function createTelemetry(opts, version, initial) {
     let sendError = "envio_fallido";
     try {
       pending = list().filter(r => (!previousOnly || r.id !== record.id) &&
-        (read(syncFile(r.id))?.revision || 0) < (r.revision || r.events.length)).slice(0, 5);
+        (read(syncFile(r.id))?.revision || 0) < (r.revision || r.events.length))
+        // El intento actual no debe quedar detras de una cola de pendientes.
+        .sort((a, b) => Number(b.id === record.id) - Number(a.id === record.id) || a.startedAt - b.startedAt).slice(0, 5);
       if (!pending.length) return;
       // Solo se transmiten datos tecnicos. No se copian opciones, mensajes de
       // excepcion ni campos arbitrarios de los archivos locales.
@@ -694,14 +696,15 @@ function errorImage(msg, W, H) {
 }
 
 async function main() {
-  const res = Device.screenResolution();
-  const W = Math.round(res.width), H = Math.round(res.height);
   const context = typeof RUN_CONTEXT === "object" && RUN_CONTEXT ? RUN_CONTEXT : null;
   const trace = context?.trace || createTelemetry(CONFIG, VERSION, context?.record);
   if (context) context.trace = trace;
-  // Si la corrida anterior murio antes del envio, se recupera su ultimo estado
-  // antes de repetir las consultas que podrian volver a cortar el proceso.
-  await trace.flush(true);
+  // Se intenta entregar el inicio actual antes de consultas o puentes nativos,
+  // junto con pendientes anteriores. No se depende solo del envio al terminar.
+  trace.event("script_start");
+  await trace.flush();
+  const res = Device.screenResolution();
+  const W = Math.round(res.width), H = Math.round(res.height);
   const store = runStore(trace);
   let b64;
   const active = store.active();
@@ -819,6 +822,9 @@ async function build(W, H, phase, trace) {
     footer: CONFIG.showUpdated ? `act. ${two(now.getHours())}:${two(now.getMinutes())}${note}` : "",
   };
   phase("Dibujo en WebView");
+  // Dejar un punto remoto antes de crear el WebView: un corte nativo puede
+  // impedir tanto el catch como el envio final, aunque las consultas hayan pasado.
+  await trace.flush();
   const b64 = await renderImage(payload, W, H);
   trace.event("render_ok", { width: W, height: H, base64Chars: b64.length });
   console.log("Dibujo listo: " + W + "x" + H);
