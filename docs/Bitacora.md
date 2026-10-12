@@ -39,11 +39,20 @@ en Chromium revisada. **Falta validar el circuito real en Google y el iPhone.**
 `loader_return_prepared` no confirma que Base64 decodificó ni que se aplicó el
 fondo; hace falta una confirmación posterior desde el Atajo para asegurar eso.
 
+Durante la instalación de los logs, Lega consultó dónde agregar `logRemote: true`
+y qué tramo reemplazar por el nuevo cargador. La captura posterior, a las 16:38
+locales, volvió a mostrar **Script completed without… outputting a value** en la
+primera acción de Scriptable. Todavía no se recibió el historial de esa corrida
+ni se confirmó la actualización del puente de Google. Consultar la versión actual
+de `tools/diagnostico.js` en el teléfono antes de cambiar otra vez la entrega.
+
 ## Pendiente
 
 0. **Activar y probar los logs de v0.15** siguiendo `docs/Logs.md`. Consultar Google
    con `tools/ver-logs-google.js` y comprobar que llegan corridas reales. Después
    reproducir el fallo y correlacionar hora, ID, última etapa y tamaño del PNG.
+   Para la captura de las 16:38, pedir primero el historial local actualizado;
+   no asumir que esta corrida llegó al retorno ni que el puente está activo.
    Si el fallo sigue en Base64, revisar la salida que recibió Atajos; el historial
    de Scriptable no registra el error de otra acción ni confirma el fondo aplicado.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
