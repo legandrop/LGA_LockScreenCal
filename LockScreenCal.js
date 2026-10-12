@@ -73,7 +73,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.19";
+const VERSION = "0.20";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -255,6 +255,93 @@ function createTelemetry(opts, version, initial) {
   return { id: record.id, event, error: (stage, err) => event(stage, { errorCode: errorCode(err) }), flush };
 }
 // ==== TRACE END ====
+
+// ==== APP RUNNER START ====
+// Este cargador se guarda dentro de Scriptable. La configuracion permanece en
+// su Keychain: el archivo generado no contiene tokens ni eventos personales.
+async function managedAppRunner() {
+  const settingsKey = "LGA_LockScreenCal.managed.config.v1";
+  if (!Keychain.contains(settingsKey)) throw new Error("Falta la configuracion local del calendario. Ejecuta una vez el Atajo existente para prepararla.");
+  const settings = JSON.parse(Keychain.get(settingsKey));
+  const fm = FileManager.local();
+  const cache = fm.joinPath(fm.libraryDirectory(), "LockScreenCal.js");
+  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.20", startedAt: Date.now(), events: [], revision: 0 };
+  const context = { record, skipPreview: true, fromShortcut: !!config.runsWithSiri || args.shortcutParameter === "atajo" };
+  let source, output;
+  const attachTrace = code => {
+    const section = code.split("// ==== TRACE START ====")[1]?.split("// ==== TRACE END ====")[0];
+    if (!section) return;
+    const version = code.match(/const VERSION = "([\d.]+)"/)?.[1] || record.version;
+    context.trace = new Function(section + "\nreturn createTelemetry;")()(settings, version, record);
+  };
+  // La copia preparada permite registrar incluso fallos de la proxima descarga.
+  try { if (fm.fileExists(cache)) { source = fm.readString(cache); attachTrace(source); } } catch (_) {}
+  context.trace?.event("loader_start");
+  context.trace?.event("download_start");
+  await context.trace?.flush();
+  try {
+    const request = new Request("https://raw.githubusercontent.com/legandrop/LGA_LockScreenCal/main/LockScreenCal.js?app=" + Date.now());
+    request.timeoutInterval = 15;
+    const downloaded = await request.loadString();
+    if (request.response?.statusCode !== 200 || !downloaded.includes("drawCalendar")) throw new Error("HTTP " + request.response?.statusCode);
+    // Se compila antes de reemplazar la ultima copia buena.
+    new (Object.getPrototypeOf(async function () {}).constructor)("OVERRIDES", "Script", "RUN_CONTEXT", downloaded);
+    source = downloaded;
+    try { fm.writeString(cache, source); } catch (_) {}
+    attachTrace(source);
+    context.trace?.event("download_ok");
+  } catch (error) {
+    context.trace?.error("download_error", error);
+    if (!source) { await context.trace?.flush(); throw error; }
+    context.trace?.event("download_cache");
+  }
+  try {
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    await new AsyncFunction("OVERRIDES", "Script", "RUN_CONTEXT", source)(settings, {
+      setShortcutOutput: value => { output = value; },
+      complete: () => {},
+    }, context);
+    if (typeof output !== "string" || !output.startsWith("iVBORw0KGgo")) throw new Error("El script no preparo un PNG valido para Atajos");
+    context.trace?.event("loader_return_prepared", { base64Chars: output.length });
+    await context.trace?.flush();
+    // La llamada nativa se hace en el cargador exterior, despues de esperar
+    // todo el programa. No se entrega una promesa como salida de la accion.
+    Script.setShortcutOutput(output);
+    if (config.runsInApp && !context.fromShortcut) {
+      context.trace?.event("app_preview");
+      await context.trace?.flush();
+      await QuickLook.present(Image.fromData(Data.fromBase64String(output)), true);
+    }
+  } catch (error) {
+    context.trace?.error("loader_error", error);
+    await context.trace?.flush();
+    throw error;
+  }
+  // Scriptable documenta que Siri/Atajos usan heuristicas de finalizacion.
+  // Complete se llama como ultima accion, con el PNG ya entregado al setter.
+  Script.complete();
+}
+
+function prepareManagedApp(settings) {
+  if (settings.logCollector !== "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs") return 0;
+  const marker = "// LockScreenCal: cargador administrado de la app";
+  const script = "// Variables used by Scriptable.\n// These must be at the very top of the file. Do not edit.\n// icon-color: deep-blue; icon-glyph: calendar-alt;\n" + marker + "\n\nawait (" + managedAppRunner.toString() + ")();\n";
+  let copies = 0;
+  try { Keychain.set("LGA_LockScreenCal.managed.config.v1", JSON.stringify(settings)); }
+  catch (_) { return 0; }
+  for (const provider of [() => FileManager.local(), () => FileManager.iCloud()]) {
+    try {
+      const fm = provider();
+      const path = fm.joinPath(fm.documentsDirectory(), "LGA_LockScreenCal_App.js");
+      // No se pisa un archivo personal que casualmente tenga ese nombre.
+      if (fm.fileExists(path) && !fm.readString(path).includes(marker)) continue;
+      if (!fm.fileExists(path) || fm.readString(path) !== script) fm.writeString(path, script);
+      copies++;
+    } catch (_) {}
+  }
+  return copies;
+}
+// ==== APP RUNNER END ====
 
 // Salir varias veces de una app dispara varias automatizaciones. Se guarda el
 // ultimo fondo para que esas corridas no repitan consultas y WebViews; el aviso
@@ -705,7 +792,10 @@ async function main() {
   if (context) context.trace = trace;
   // Se intenta entregar el inicio actual antes de consultas o puentes nativos,
   // junto con pendientes anteriores. No se depende solo del envio al terminar.
-  trace.event("script_start");
+  // Se prepara una alternativa en la app sin copiar configuracion en otra UI.
+  // El conteo indica cuantas ubicaciones locales quedaron listas (sin secretos).
+  const appCopies = prepareManagedApp(CONFIG);
+  trace.event("script_start", CONFIG.logCollector ? { count: appCopies } : {});
   await trace.flush();
   const res = Device.screenResolution();
   const W = Math.round(res.width), H = Math.round(res.height);
@@ -716,7 +806,7 @@ async function main() {
   const age = previous && Date.now() - previous.at;
   // Dentro de la app se puede probar de nuevo sin esperar el minuto. Una
   // corrida que sigue activa se respeta tambien ahi para no sumar otro WebView.
-  if (active || (previous && age >= 0 && age < COOLDOWN_MS && !config.runsInApp)) {
+  if (active || (previous && age >= 0 && age < COOLDOWN_MS && (!config.runsInApp || context?.fromShortcut))) {
     trace.event(active ? "reuse_active" : "reuse_recent");
     console.log(active ? "Ya hay una actualizacion en curso" : "Se reutiliza el fondo del ultimo minuto");
     b64 = previous ? previous.b64 : Data.fromPNG(errorImage("Ya hay una actualizacion en curso. Espera dos minutos y ejecuta una sola vez.", W, H)).toBase64String();
@@ -747,7 +837,7 @@ async function main() {
     store.delivery("Salida preparada", b64);
     Script.setShortcutOutput(b64);
     store.delivery("Funcion de salida invocada (sin confirmacion de Atajos)", b64);
-    if (config.runsInApp) {
+    if (config.runsInApp && !context?.skipPreview) {
       store.phase("Vista previa en Scriptable", result);
       await QuickLook.present(Image.fromData(Data.fromBase64String(b64)), true);
     }
@@ -785,7 +875,7 @@ async function build(W, H, phase, trace) {
   if (CONFIG.todoistToken) {
     phase("Consulta a Todoist");
     try {
-      tasks = await loadFromTodoist(now);
+      tasks = await withDeadline(loadFromTodoist(now), 15000);
       trace.event("todoist_ok", { count: tasks.length });
       console.log("Todoist: " + tasks.length + " tareas");
     } catch (err) { trace.error("todoist_error", err); console.error(err); note += " · sin Todoist"; }

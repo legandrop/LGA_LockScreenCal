@@ -216,10 +216,17 @@ Desde v0.15 también conserva un historial por corrida, incluidos los fondos
 reutilizados. v0.16 permite usar un receptor administrado para consultar los
 registros directamente, sin copiar resultados del teléfono. Su despliegue está
 probado con registros sintéticos y la recepción ya exige clave sin necesitar
-iniciar sesión. Ya llegó la marca de inicio de una corrida real del teléfono;
-falta comprobar su final y la estabilidad del Atajo. Ver [Registros y mantenimiento remoto](docs/Logs.md).
+iniciar sesión. Ya se recuperaron registros completos del teléfono, con esperas
+de Google de decenas de minutos. La estabilidad del Atajo sigue sin confirmarse.
+Ver [Registros y mantenimiento remoto](docs/Logs.md).
 La consulta de Google espera hasta 12 s con un temporizador antes de continuar
 con los calendarios del iPhone; iOS puede suspender ese temporizador.
+
+v0.20 prepara automáticamente un script guardado, `LGA_LockScreenCal_App`, para
+quienes usan el receptor administrado. Conserva los ajustes en Keychain del
+teléfono y permite probar la ejecución abriendo Scriptable, sin volver a pegar
+código. Esta alternativa aún necesita validación en iOS; ver la documentación
+de registros antes de cambiar las acciones del Atajo.
 
 ### Actualizar un cargador anterior a v0.14
 
@@ -294,6 +301,7 @@ node --input-type=module --check < LockScreenCal.js
 node tools/check-shortcut.cjs   # entrega a Atajos con APIs simuladas
 node tools/check-logs.cjs       # historial, reintentos, autenticación y privacidad
 node tools/check-deadlines.cjs  # plazos, respuestas tardías, limpieza y SHA-256
+node tools/check-app-runner.cjs # script guardado, Keychain, caché y salida nativa
 npm i playwright && npx playwright install chromium
 node tools/preview.cjs          # -> preview/preview.png
 ```

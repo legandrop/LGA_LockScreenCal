@@ -23,24 +23,32 @@ fueron rechazadas inicialmente por una clave incorrecta configurada a partir de
 una captura. Se corrigio el secreto en Sites y se redesplego la misma fuente con
 revision de entorno 2. El token exacto se obtuvo del cargador compartido por Lega;
 no se guarda en esta documentacion ni en fuente. Se confirmo un POST con la clave
-corregida. Falta la primera corrida real almacenada; la proxima ejecucion del
-Atajo debe recuperar las corridas pendientes sin editar el telefono.
+corregida. Luego se recibieron corridas reales y se recuperaron sus pendientes.
 
 Las peticiones reales v0.16 seguian devolviendo 401 tras corregir la clave: no
 incluian el encabezado Authorization. Se corrigio el cliente v0.17 para asignar
 el diccionario completo a `req.headers`, evitando mutar la copia de su getter.
 Verificado con prueba de regresion y con la fabrica real enviando un registro
-sintetico al receptor real; se confirmo revision 2 y se leyo desde D1. Falta una
-corrida del telefono con v0.17; no confundir las pruebas sinteticas con la
-validacion del Atajo. El cargador instalado descarga esta mejora automaticamente.
+sintetico al receptor real; se confirmo revision 2 y se leyo desde D1. Las
+peticiones reales posteriores v0.18/v0.19 tienen autorizacion y devolvieron 200.
+El cargador instalado descarga esta mejora automaticamente.
 
 v0.18 agrega envios del inicio actual y del estado previo al WebView, y prioriza
 el intento actual sobre una cola de pendientes. La comprobacion posterior encontro una
 corrida real v0.18 a las 18:19 locales: marca de inicio aceptada en D1 y cuatro
-corridas antiguas recuperadas. No se recibio su estado final. Desde v0.19 se
+corridas antiguas recuperadas. Luego se recupero su estado final: Google tuvo
+un timeout tras 61 min 4 s, Todoist tras 87.7 s y el PNG se preparo a las 19:21.
+La corrida anterior v0.16 tambien espero Google durante 45 min 31 s. Desde v0.19 se
 priorizan pendientes recientes para recuperar el ultimo intento antes que la
 cola vieja. Un corte antes de ejecutar la fabrica
-remota de telemetria queda fuera de su alcance.
+remota de telemetria queda fuera de su alcance. La corrida real v0.19 de las
+19:21 solo tiene el inicio; no atribuir su estado posterior por ausencia remota.
+
+v0.20 prepara un script generico guardado en Scriptable para probar la ejecucion
+en primer plano. `script_start.count` indica las copias locales/iCloud preparadas;
+no transmite sus ajustes, que quedan en Keychain del telefono. La prueba
+`foreground-probe-...` de nube verifica Google, Todoist y receptor con dibujo
+simulado; no demuestra que el Atajo funcione en iOS.
 
 Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error
 1010, antes de entrar al Worker. Con User-Agent `LockScreenCal/0.16` llegaron al

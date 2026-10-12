@@ -15,7 +15,9 @@ instalar un visor ni copiar resultados desde el telefono.
 
 El receptor esta desplegado y probado con registros sinteticos. La recepcion ya
 esta accesible sin sesion, exige clave y la lectura sigue privada. Se recibio una
-corrida real v0.18 con su marca de inicio; falta su estado posterior. Ver [Receptor.md](Receptor.md).
+corrida real v0.18 y luego se recupero su estado final, junto a intentos anteriores.
+Esos registros muestran esperas de Google de decenas de minutos, aun con el
+temporizador de 12 s. Ver [Receptor.md](Receptor.md).
 
 Con el acceso listo, el usuario conserva su MI_CONFIG y agrega una sola opcion:
 
@@ -55,6 +57,23 @@ logs durante minutos.
 Sin `logCollector` se conserva el envio v0.15 al puente propio. Esa via requiere
 el addon [google/Logs.gs](../google/Logs.gs) desplegado junto al puente y conserva
 50 corridas remotas. No forma parte de la nueva instalacion de Lega.
+
+## Alternativa en la app Scriptable
+
+Desde v0.20 el programa prepara automaticamente `LGA_LockScreenCal_App` cuando
+se usa el receptor administrado. El archivo guardado contiene un cargador
+generico; la configuracion queda en Keychain del dispositivo. No hace falta
+volver a copiar tokens ni codigo. Se escriben los documentos locales y de
+iCloud disponibles, sin pisar un archivo personal sin la marca administrada.
+La cantidad preparada aparece como `script_start.count` (0, 1 o 2).
+
+El cargador guardado baja las mejoras y conserva una copia validada para fallos
+de red. Una ejecucion manual desde Scriptable muestra el PNG; con parametro
+`atajo` entrega base64 sin abrir la vista previa. El setter nativo exterior se
+invoca despues de esperar todo el programa y `Script.complete()` es la ultima
+accion. Ejecutarlo dentro de la app requiere abrir Scriptable; el script no
+puede cambiar por si solo el modo de ejecucion de la accion de Atajos. La
+estabilidad en el telefono todavia debe comprobarse.
 
 ## Alcance del diagnostico
 

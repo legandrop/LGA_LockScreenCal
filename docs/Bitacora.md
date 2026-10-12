@@ -8,16 +8,20 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 ## Resumen
 
 **El Atajo sigue siendo intermitente; no se ha confirmado una solucion en iOS.**
-El historial recibido el 12/10 muestra una consulta a Google que duro casi cinco
-minutos y termino en `timeout`; Todoist y el dibujo terminaron rapido. Otra corrida
+Los registros recuperados el 12/10 muestran una consulta a Google de 45 min 31 s
+en v0.16 y otra de 61 min 4 s en v0.18. Esta ultima tambien tuvo un timeout de
+Todoist de 87.7 s; luego dibujo el PNG y preparo el retorno a las 19:21 locales,
+62 min 37 s despues de empezar. Atajos ya habia mostrado el error. Otra corrida
 reutilizo un PNG y preparo el retorno en 1.5 s. Las etapas de salida no confirman
 que Atajos recibio el texto, decodifico el PNG ni aplico el fondo. Se observaron
 fallos tanto en Scriptable como en la accion Base64 de Atajos.
 
-**v0.16 limita la espera de Google a 12 s mediante Timer y Promise.race.**
+**El plazo de 12 s de Google no se cumplio en esas corridas reales.**
+Desde v0.16 se usa Timer y Promise.race.
 `Request.timeoutInterval` limita inactividad, no tiempo total. Al vencer el nuevo
 limite se continua con los calendarios del iPhone. El temporizador no cancela la
-peticion nativa ni corre mientras iOS suspende el proceso. Los envios de registros
+peticion nativa ni corre mientras iOS suspende el proceso. Los registros no
+distinguen espera continua de red de suspension de callbacks. Los envios de registros
 usan el mismo mecanismo con 2 s. Las respuestas tardias no modifican el resultado.
 
 **Lega pide una sola instalacion y mantenimiento remoto, sin copiar diagnosticos.**
@@ -31,39 +35,48 @@ habilitada, con lectura reservada a la administracion. La escritura
 requiere clave derivada del token local; no hay API publica de lectura. Guarda
 solo etapas, tiempos, cantidades, codigos y tamanos, hasta 500 corridas. Se verifico
 un POST real y su lectura directa mediante las herramientas de administracion de
-D1. Ya se recibio ademas una corrida real del iPhone v0.18, solo con el inicio. Ver `docs/Receptor.md` para identidad,
+D1. Se recupero el historial completo de esas corridas del iPhone. El intento
+v0.19 de las 19:21 solo tiene el inicio remoto. Ver `docs/Receptor.md` para identidad,
 ubicacion del proyecto, acceso y procedimiento de consulta.
 
 Sintaxis, entrega simulada, fallback de Google que nunca responde, plazos de logs,
 SHA-256, limpieza de temporizadores, reintentos, revisiones, privacidad y retencion
 verificados. Vista previa de Chromium revisada. El receptor se probo con SQLite
-real, se construyo y se desplego correctamente. Falta recibir el estado posterior
-al inicio de la corrida real v0.18.
+real, se construyo y se desplego correctamente.
+
+**v0.20 prepara una alternativa dentro de la app, sin pegar codigo.** Antes de
+consultar calendarios guarda un cargador generico `LGA_LockScreenCal_App.js` en
+los documentos locales y de iCloud de Scriptable. Solo se habilita con el receptor
+administrado de Lega. Guarda los ajustes en Keychain; el archivo no contiene
+tokens, URLs privadas ni eventos. `script_start.count` registra cuantas copias
+pudo preparar (0, 1 o 2). No pisa archivos personales sin su marca administrada.
+El script guardado descarga las mejoras, valida y cachea el codigo, espera el
+PNG y llama al setter nativo exterior y a `Script.complete()` como ultima accion.
+Una ejecucion manual muestra la vista previa; el parametro `atajo` la omite.
+Todoist tambien tiene un plazo logico de 15 s, sujeto a la misma suspension.
+Esto NO convierte por codigo una ejecucion en segundo plano en primer plano.
+La alternativa abre Scriptable y aun requiere validacion real en el telefono.
+
+Se probaron instalacion sin secretos en archivos, proteccion de archivos
+personales, cache offline, descargas invalidas, salida nativa despues del await,
+vista previa manual y finalizacion. Una prueba de nube con la fabrica y programa
+reales, servicios Google/Todoist/receptor reales y dibujo simulado preparo la
+salida en 11.6 s; Google respondio en 7.0 s y Todoist en 0.4 s. Su registro
+`foreground-probe-...` se confirmo en D1. No es una prueba de iOS.
 
 ## Pendiente
 
-0. **Recuperar el ultimo estado local y hacer una sola ejecucion aislada.**
-   Ya hay una corrida real v0.18 del iPhone, a las 18:19 locales del 12/10:
-   descarga en 554 ms y marca script_start en 564 ms. El receptor acepto el POST
-   con 200 y guardo esa marca junto con cuatro corridas antiguas v0.15. Solo llego
-   el inicio de esa corrida; no se conoce su ultimo estado local ni se puede
-   afirmar que nunca consulto calendarios. No atribuirlo a Google o memoria.
-   En logs del Worker, a las 18:19:16.548 y .557, llegaron peticiones v0.18 (200,
-   con autorizacion) y v0.16 (401, sin autorizacion) desde la misma conexion,
-   sin la firma de nuestras pruebas de nube. Esto muestra trafico de versiones
-   distintas casi simultaneo; no prueba por si solo la causa del error de Atajos.
-   v0.19 prioriza el intento actual y despues los pendientes MAS RECIENTES, para
-   recuperar el ultimo fallo sin esperar a subir todo el historial viejo. Probado
-   con una cola larga y una corrida interrumpida reciente. Llega sin pegar codigo.
-   La prueba preparada consiste en pausar temporalmente la automatizacion al salir
-   de WhatsApp, cerrar Atajos y Scriptable desde el selector de apps y ejecutar
-   una sola vez desde Atajos. Eso reduce actividad paralela y permite consultar
-   directamente el intento nuevo y el anterior, si pudo persistirse. No pedir
-   exports ni repetir en bucle. La estabilidad no esta confirmada.
-   Si el registro anterior llega a loader_return_prepared y Atajos reporto falta
-   de salida, revisar la entrega externa del cargador: hoy usa return y no llama
-   al setter nativo en el nivel exterior. Si se interrumpe antes, diagnosticar
-   la ultima etapa real en lugar de cambiar la entrega sin esa evidencia.
+0. **Probar el script guardado en primer plano.** La prueba aislada del Atajo
+   volvio a fallar a las 19:22 locales. No pedir otra serie de repeticiones.
+   Ejecutar el Atajo existente una vez para preparar el archivo v0.20; ese intento
+   aun puede dar el error anterior. Consultar directamente `script_start.count`.
+   Luego abrir Scriptable y ejecutar `LGA_LockScreenCal_App` manteniendo la app
+   abierta hasta la vista previa. Leer D1 sin pedir exports. Si funciona, guiar
+   un cambio de la primera accion para ejecutar el script guardado en la app,
+   con parametro `atajo`, y reconectar la salida a Base64. Confirmar las opciones
+   reales de la interfaz antes de dar nombres de botones. La captura de las tres
+   acciones compactas no muestra una opcion de primer plano. No asumir que existe
+   en Run Inline Script. Esta alternativa abre Scriptable durante la actualizacion.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
