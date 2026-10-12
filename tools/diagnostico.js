@@ -21,6 +21,24 @@ try {
     }
   }
 } catch (_) { text = "No se pudo leer el registro local."; }
+try {
+  const dir = fm.joinPath(fm.libraryDirectory(), "LockScreenCal-logs");
+  const runs = fm.listContents(dir).filter(n => n.endsWith(".json") && !n.endsWith(".sync.json"))
+    .map(n => { try { return JSON.parse(fm.readString(fm.joinPath(dir, n))); } catch (_) { return null; } })
+    .filter(r => r && Array.isArray(r.events)).sort((a, b) => b.startedAt - a.startedAt).slice(0, 10);
+  if (runs.length) {
+    text += "\n\nHISTORIAL (ultimas 10 corridas; no confirma el fondo aplicado):\n";
+    for (const r of runs) {
+      let sent;
+      try { sent = JSON.parse(fm.readString(fm.joinPath(dir, r.id + ".sync.json"))); } catch (_) {}
+      const status = !r.remoteEnabled ? "envio remoto desactivado" :
+        sent && sent.revision >= r.revision ? "Google confirmo el registro" : "pendiente de envio a Google" + (sent?.errorCode ? " · " + sent.errorCode : "");
+      text += "\n" + new Date(r.startedAt).toLocaleString("es-AR") + " · " + r.id + " · v" + r.version + "\n" + status + "\n";
+      text += r.events.map(e => e.stage + " (" + (e.ms / 1000).toFixed(1) + " s)" +
+        (e.errorCode ? " · " + e.errorCode : "") + (e.base64Chars != null ? " · " + e.base64Chars + " caracteres" : "")).join("\n") + "\n";
+    }
+  }
+} catch (_) {}
 console.log(text);
 await QuickLook.present(text, true);
 Script.complete();

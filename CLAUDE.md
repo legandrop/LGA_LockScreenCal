@@ -51,8 +51,14 @@ fondo. Lo usa Lega y la idea es pasárselo a su familia y amigos.
 | `LockScreenCal.js` | Lee eventos (calendarios del iPhone o el puente de Google), dibuja en un `<canvas>` dentro de un `WebView`, y devuelve el PNG **en base64** con `Script.setShortcutOutput` (Scriptable no acepta una imagen como salida). Todo lo configurable está en `CONFIG`; el cargador lo pisa con `OVERRIDES`. |
 | `loader.js` | Va **adentro del Atajo** (acción "Run Inline Script" de Scriptable). Baja y cachea `LockScreenCal.js`. Desde v0.14 le pasa un `Script` que captura el PNG y evita completar la acción dentro de la función descargada; espera su final y devuelve la salida con `return` desde el cargador. El código pegado en Atajos requiere actualizarse una vez para usar esa vía. |
 | `google/Code.gs` | Puente opcional (Google Apps Script) para tener el color de cada **evento** de Google, que el iPhone no expone. Sin probar. |
+| `google/Logs.gs` | Se agrega al puente desplegado: `doPost` autenticado con su `TOKEN`, retención de 50 corridas en ScriptProperties y lectura privada. Publicar el repo no actualiza esa implementación. |
 | `tools/preview.cjs` | Vista previa en la compu: extrae `drawCalendar` entre las marcas `RENDER START/END` y lo corre en Chromium con datos inventados. |
 | `docs/preview.png` | La imagen del README. Regenerarla si cambia el dibujo. |
 
 `drawCalendar` **no puede usar nada de afuera de la función**: se inyecta en el
 WebView con `drawCalendar.toString()`.
+
+El historial técnico de v0.15 se explica en `docs/Logs.md`. No incluye mensajes
+crudos de excepciones ni datos de eventos. Después de cambios en el cargador,
+mantener `tools/loader-body.js` igual al bloque desde `const URL =` de `loader.js`
+y ejecutar `node tools/check-shortcut.cjs` y `node tools/check-logs.cjs`.

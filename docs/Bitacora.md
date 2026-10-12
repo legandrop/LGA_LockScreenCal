@@ -7,47 +7,45 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 
 ## Resumen
 
-El 12/10 Lega volvió a reportar el corte de Scriptable sin salida. Al principio
-pasaba a veces al entrar y salir repetidamente de WhatsApp (el Atajo se dispara al
-cerrarla). Parecía haber dejado de funcionar desde el día anterior, pero durante
-la conversación comprobó que alguna corrida de hoy sí actualizó el fondo. El
-problema era intermitente. Luego ejecutó el Atajo y leyó el diagnóstico
-desde Scriptable: **v0.13, última etapa "Salida entregada", 7.8 s, estado ok**, pero
-Atajos había mostrado otra vez el error de ejecución sin salida. Esa etapa se
-escribía después de llamar a `setShortcutOutput`; **no confirma que Atajos recibió
-el resultado**, ni permite asegurar que era la misma corrida (las que reutilizaban
-un fondo no actualizaban ese registro). **No hay diagnóstico confirmado de la causa**.
+**El Atajo sigue siendo intermitente.** El 12/10 se probó el retorno del cargador
+v0.14: una corrida manual funcionó y después volvió a fallar. La captura más
+reciente muestra otro error, en la acción Base64: **Shortcuts no pudo convertir
+de Texto a NSString**. Ocurre después de Scriptable y no lo puede capturar un
+`catch` del calendario. No atribuirlo a memoria, tiempo, Google ni Todoist sin
+evidencia. El diagnóstico v0.13 había llegado a "Salida entregada", 7.8 s, estado
+ok; ese registro solo confirmaba que se llamó a la función de salida y podía
+corresponder a otra corrida. La etiqueta quedó corregida desde v0.14.
 
-**v0.13** reutiliza el último fondo durante un minuto con los mismos ajustes y
-consulta una marca local antes de iniciar otro dibujo. La marca vence a los dos
-minutos si iOS termina el proceso. Se registra la última etapa, versión y tiempo
-en disco; `tools/diagnostico.js` permite leerlos desde Scriptable sin volver a
-ejecutar el calendario. Conserva la entrega directa en base64 de v0.12; el fondo
-de error ahora se genera a 390 px de ancho para reducir memoria también ahí.
-Sintaxis, salida simulada, repetición, solapamiento y marcas vencidas verificados;
-vista previa en Chromium revisada. v0.13 fue probada en el iPhone y el error sigue.
+**v0.15 agrega historial por corrida y envío privado al puente de Google.** Lega
+pidió logs persistentes y aprobó usar su puente existente. Cada corrida tiene su
+propio ID y archivo, con etapas, tiempos, cantidades y tamaño del PNG. Se conservan
+100 corridas locales y 50 en Google. No se suben títulos, nombres de calendarios,
+claves, contenido del PNG ni mensajes crudos de excepciones. Los códigos de error
+y las etapas permiten identificar fallos de JavaScript y de red. Si iOS termina
+el proceso, una corrida posterior intenta subir el último estado pendiente.
 
-**v0.14** cambia el cargador: captura el PNG preparado por el script descargado,
-evita que `Script.complete()` finalice la acción desde esa función y espera su
-promesa. Después devuelve el PNG con `return` desde el código exterior del Atajo,
-una vía documentada por Scriptable. **Requiere editar el final del cargador que
-ya está en el Atajo**; no llega con la descarga automática del script principal.
-También corrige la etapa a "Salida preparada (sin confirmacion de Atajos)" y
-registra por separado cada intento de salida, incluidos los fondos reutilizados.
-Las pruebas verifican retorno normal, caché sin internet, fondo de error, app y
-espera del final asíncrono de la función descargada. **Lega actualizó el final del
-cargador, ejecutó el Atajo y reportó que esta vez funcionó bien.** La primera
-ejecución manual con la nueva entrega fue exitosa; falta comprobar que se mantenga
-estable con las automatizaciones y corridas repetidas. Esa prueba no demuestra
-por sí sola la causa del fallo intermitente anterior.
+El bloque `google/Logs.gs` se agrega al final del puente existente y usa su TOKEN.
+**Falta que Lega actualice esa implementación**, agregue `logRemote: true` a su
+MI_CONFIG e instale el bloque `tools/loader-body.js` desde `const URL =` hasta el
+final del Atajo. El código del script principal llega automáticamente; el
+cargador y la implementación de Google necesitan esa actualización manual. Los
+pasos están en `docs/Logs.md`. `tools/diagnostico.js` muestra el historial local y
+`tools/ver-logs-google.js` consulta los registros remotos sin mostrar la clave.
+
+Sintaxis, salida simulada, fallos de envío que no impiden devolver el PNG,
+autenticación del puente, reintentos, deduplicación, recuperación de una corrida
+interrumpida, retención y privacidad verificados con APIs simuladas. Vista previa
+en Chromium revisada. **Falta validar el circuito real en Google y el iPhone.**
+`loader_return_prepared` no confirma que Base64 decodificó ni que se aplicó el
+fondo; hace falta una confirmación posterior desde el Atajo para asegurar eso.
 
 ## Pendiente
 
-0. **Comprobar la estabilidad de v0.14 con las automatizaciones de WhatsApp.** El
-   cargador ya está actualizado y la primera ejecución manual funcionó. Si vuelve
-   el error, copiar nuevamente `tools/diagnostico.js` en Scriptable para consultar
-   también el último intento de salida y su longitud en base64. No atribuir el
-   fallo a Google/Todoist, memoria, tiempo ni solapamiento sin más evidencia.
+0. **Activar y probar los logs de v0.15** siguiendo `docs/Logs.md`. Consultar Google
+   con `tools/ver-logs-google.js` y comprobar que llegan corridas reales. Después
+   reproducir el fallo y correlacionar hora, ID, última etapa y tamaño del PNG.
+   Si el fallo sigue en Base64, revisar la salida que recibió Atajos; el historial
+   de Scriptable no registra el error de otra acción ni confirma el fondo aplicado.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice

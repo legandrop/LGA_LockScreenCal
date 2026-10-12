@@ -8,6 +8,8 @@ const vm = require("node:vm");
 const root = path.join(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "LockScreenCal.js"), "utf8");
 const loader = fs.readFileSync(path.join(root, "loader.js"), "utf8");
+assert.equal(fs.readFileSync(path.join(__dirname, "loader-body.js"), "utf8").trim(), loader.slice(loader.indexOf("const URL =")).trim(),
+  "El bloque para actualizar el Atajo debe coincidir con el cargador completo");
 const diagnostic = fs.readFileSync(path.join(__dirname, "diagnostico.js"), "utf8");
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
 
@@ -70,6 +72,8 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
       writeString: (name, text) => { if (storageFails) throw new Error("Disco no disponible"); files.set(name, text); },
       readString: name => files.get(name), fileExists: name => files.has(name),
       remove: name => { files.delete(name); },
+      createDirectory() {},
+      listContents: dir => [...files.keys()].filter(name => name.startsWith(dir + "/")).map(name => name.slice(dir.length + 1)),
     }) },
     Request: class {
       response = { statusCode: 200 };
@@ -160,6 +164,10 @@ async function readDiagnostic(files) {
   activeFiles.set("/cache/LockScreenCal-output.txt", "archivo roto");
   await check({ files: activeFiles, now: epoch + 120001 });
   await check({ storageFails: true });
+  // El simulador no ofrece loadJSON: fuerza fallos del puente y del envio.
+  // Igual debe entregar el PNG; los logs quedan pendientes para otra corrida.
+  const remoteFailure = await check({ overrides: { logRemote: true, googleUrl: "https://example.invalid/exec?token=PRIVADO" } });
+  assert.ok([...remoteFailure.keys()].some(key => key.endsWith(".sync.json")), "Debe conservarse el intento de envio fallido");
   const coldFiles = new Map([["/cache/LockScreenCal-active.json", JSON.stringify({ id: "primera", startedAt: epoch })]]);
   await check({ files: coldFiles, expectRender: false, busyWithoutCache: true });
   assert.equal(coldFiles.has("/cache/LockScreenCal-output.txt"), false, "El aviso no debe guardarse como fondo bueno");

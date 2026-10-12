@@ -18,6 +18,10 @@ const CONFIG = {
   //    Google no responde, usa todo del iPhone.
   googleUrl: "",
 
+  // Historial remoto en el mismo puente de Google, despues de actualizarlo.
+  // Si falla el envio, los registros quedan pendientes en el iPhone.
+  logRemote: false,
+
   // Tareas de Todoist con fecha (opcional). El token se saca de Todoist:
   // Configuracion -> Integraciones -> Desarrollador. Da acceso total a la cuenta:
   // va solo en el MI_CONFIG de cada uno, nunca se comparte.
@@ -68,7 +72,123 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.14";
+const VERSION = "0.15";
+
+// ==== TRACE START ====
+// El cargador reutiliza esta funcion del archivo descargado. Cada corrida tiene
+// su propio archivo para que dos automatizaciones no se pisen el historial.
+function createTelemetry(opts, version, initial) {
+  const fm = FileManager.local();
+  const dir = fm.joinPath(fm.libraryDirectory(), "LockScreenCal-logs");
+  const record = initial || {
+    id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2),
+    startedAt: Date.now(), events: [],
+  };
+  record.version = version;
+  record.revision = record.revision || record.events.length;
+  record.remoteEnabled = !!(opts.logRemote && opts.googleUrl);
+  const file = id => fm.joinPath(dir, id + ".json");
+  const syncFile = id => fm.joinPath(dir, id + ".sync.json");
+  const read = path => {
+    try { return JSON.parse(fm.readString(path)); } catch (_) { return null; }
+  };
+  const write = (path, value) => {
+    try { fm.createDirectory(dir, true); fm.writeString(path, JSON.stringify(value)); }
+    catch (_) { console.log("No se pudo guardar el historial local"); }
+  };
+  const list = () => {
+    try {
+      return fm.listContents(dir).filter(n => n.endsWith(".json") && !n.endsWith(".sync.json"))
+        .map(n => read(fm.joinPath(dir, n))).filter(r => r && Array.isArray(r.events))
+        .sort((a, b) => a.startedAt - b.startedAt);
+    } catch (_) { return []; }
+  };
+  const fields = ["count", "width", "height", "base64Chars", "httpStatus"];
+  const stages = new Set(("loader_start download_start download_ok download_error download_cache loader_error " +
+    "script_start google_start google_ok google_error phone_start phone_ok todoist_start todoist_ok todoist_error " +
+    "render_start render_ok build_error error_image output_prepared output_call output_error app_preview " +
+    "script_prepared reuse_active reuse_recent loader_return_prepared").split(" "));
+  const errorCode = err => {
+    const message = String(err && err.message || "");
+    const http = message.match(/HTTP (\d{3})/);
+    if (http) return "HTTP_" + http[1];
+    if (/PNG valido/.test(message)) return "invalid_png";
+    if (/Respuesta inesperada de Google/.test(message)) return "invalid_google_response";
+    if (/timed? out|timeout|tiempo de espera/i.test(message)) return "timeout";
+    if (/offline|sin internet|network connection/i.test(message)) return "network_error";
+    const names = ["Error", "TypeError", "RangeError", "SyntaxError", "NetworkError"];
+    return names.includes(err && err.name) ? err.name : "Error";
+  };
+  const event = (stage, details = {}) => {
+    if (!stages.has(stage)) return;
+    const at = Date.now();
+    const e = { at, ms: Math.max(0, at - record.startedAt), stage };
+    for (const key of fields) if (Number.isFinite(details[key])) e[key] = details[key];
+    if (details.errorCode && /^(Error|TypeError|RangeError|SyntaxError|NetworkError|HTTP_\d{3}|invalid_png|invalid_google_response|timeout|network_error)$/.test(details.errorCode)) e.errorCode = details.errorCode;
+    record.updatedAt = at;
+    record.revision++;
+    record.events.push(e);
+    record.events = record.events.slice(-50);
+    write(file(record.id), record);
+  };
+  const prune = () => {
+    for (const old of list().slice(0, -100)) {
+      // Se deja terminar a otras corridas aunque se supere temporalmente el limite.
+      if (Date.now() - old.startedAt < 120000) continue;
+      try { fm.remove(file(old.id)); if (fm.fileExists(syncFile(old.id))) fm.remove(syncFile(old.id)); }
+      catch (_) {}
+    }
+  };
+  const flush = async (previousOnly = false) => {
+    if (!opts.logRemote || !opts.googleUrl) return;
+    let pending = [];
+    let sendError = "envio_fallido";
+    try {
+      pending = list().filter(r => (!previousOnly || r.id !== record.id) &&
+        (read(syncFile(r.id))?.revision || 0) < (r.revision || r.events.length)).slice(0, 5);
+      if (!pending.length) return;
+      // Solo se transmiten datos tecnicos. No se copian opciones, mensajes de
+      // excepcion ni campos arbitrarios de los archivos locales.
+      const runs = pending.map(r => ({
+        id: r.id, version: r.version, startedAt: r.startedAt, updatedAt: r.updatedAt, revision: r.revision || r.events.length,
+        events: r.events.filter(e => stages.has(e.stage)).map(e => {
+          const out = { at: e.at, ms: e.ms, stage: e.stage };
+          for (const key of fields) if (Number.isFinite(e[key])) out[key] = e[key];
+          if (/^(Error|TypeError|RangeError|SyntaxError|NetworkError|HTTP_\d{3}|invalid_png|invalid_google_response|timeout|network_error)$/.test(e.errorCode || "")) out.errorCode = e.errorCode;
+          return out;
+        }),
+      }));
+      const req = new Request(opts.googleUrl + (opts.googleUrl.includes("?") ? "&" : "?") + "action=logs");
+      req.method = "POST";
+      req.headers = { "Content-Type": "application/json" };
+      req.body = JSON.stringify({ runs });
+      req.timeoutInterval = 2;
+      const reply = await req.loadJSON();
+      if (["token", "busy", "schema", "size", "action", "json"].includes(reply && reply.error)) sendError = "puente_" + reply.error;
+      if (req.response?.statusCode !== 200 || !Array.isArray(reply && reply.accepted)) throw new Error("Respuesta de logs invalida");
+      for (const r of pending) {
+        const ack = reply.accepted.find(a => a.id === r.id && a.count === r.events.length && a.revision === (r.revision || r.events.length));
+        if (ack) write(syncFile(r.id), { count: ack.count, revision: ack.revision, sentAt: Date.now() });
+        else write(syncFile(r.id), { revision: read(syncFile(r.id))?.revision || 0, errorCode: "sin_confirmacion", attemptedAt: Date.now() });
+      }
+    } catch (err) {
+      if (err && err.name === "SyntaxError") sendError = "respuesta_no_json";
+      for (const r of pending) write(syncFile(r.id), {
+        revision: read(syncFile(r.id))?.revision || 0, errorCode: sendError, attemptedAt: Date.now(),
+      });
+      console.log("Logs pendientes: el puente no confirmo el envio");
+    }
+  };
+  // La URL queda solo en el contenedor local de Scriptable para que el visor
+  // pueda consultar Google sin pedir que se vuelva a pegar la clave.
+  if (opts.logRemote && opts.googleUrl) {
+    try { fm.writeString(fm.joinPath(fm.libraryDirectory(), "LockScreenCal-log-endpoint.txt"), opts.googleUrl); }
+    catch (_) {}
+  }
+  prune();
+  return { id: record.id, event, error: (stage, err) => event(stage, { errorCode: errorCode(err) }), flush };
+}
+// ==== TRACE END ====
 
 // Salir varias veces de una app dispara varias automatizaciones. Se guarda el
 // ultimo fondo para que esas corridas no repitan consultas y WebViews; el aviso
@@ -76,7 +196,7 @@ const VERSION = "0.14";
 const COOLDOWN_MS = 60000;
 const ACTIVE_MS = 120000;
 
-function runStore() {
+function runStore(trace) {
   const fm = FileManager.local();
   const file = name => fm.joinPath(fm.libraryDirectory(), "LockScreenCal-" + name);
   const read = name => {
@@ -101,6 +221,13 @@ function runStore() {
   const phase = (name, result = "en curso") => {
     state = { version: VERSION, startedAt, updatedAt: Date.now(), phase: name, result };
     write("run.json", JSON.stringify(state));
+    const stages = {
+      Inicio: "script_start", "Consulta a Google": "google_start", "Calendarios del iPhone": "phone_start",
+      "Consulta a Todoist": "todoist_start", "Dibujo en WebView": "render_start",
+      "Fondo de error": "error_image", "Preparacion de salida": "output_prepared",
+      "Vista previa en Scriptable": "app_preview", "Salida preparada (sin confirmacion de Atajos)": "script_prepared",
+    };
+    if (stages[name]) trace.event(stages[name]);
     console.log("v" + VERSION + " · " + name + " · " + ((state.updatedAt - startedAt) / 1000).toFixed(1) + " s");
   };
   const cached = () => {
@@ -115,9 +242,10 @@ function runStore() {
       // Tambien las corridas que reutilizan un fondo tienen su propio intento
       // de salida. No pisan la etapa de otra corrida que aun esta dibujando.
       write("delivery.json", JSON.stringify({
-        version: VERSION, startedAt, updatedAt: Date.now(), phase: name,
+        version: VERSION, runId: trace.id, startedAt, updatedAt: Date.now(), phase: name,
         base64Chars: b64.length,
       }));
+      trace.event(name.startsWith("Funcion") ? "output_call" : "output_prepared", { base64Chars: b64.length });
     },
     active: () => {
       const run = json("active.json");
@@ -507,7 +635,13 @@ function errorImage(msg, W, H) {
 async function main() {
   const res = Device.screenResolution();
   const W = Math.round(res.width), H = Math.round(res.height);
-  const store = runStore();
+  const context = typeof RUN_CONTEXT === "object" && RUN_CONTEXT ? RUN_CONTEXT : null;
+  const trace = context?.trace || createTelemetry(CONFIG, VERSION, context?.record);
+  if (context) context.trace = trace;
+  // Si la corrida anterior murio antes del envio, se recupera su ultimo estado
+  // antes de repetir las consultas que podrian volver a cortar el proceso.
+  await trace.flush(true);
+  const store = runStore(trace);
   let b64;
   const active = store.active();
   const previous = store.cached();
@@ -515,11 +649,13 @@ async function main() {
   // Dentro de la app se puede probar de nuevo sin esperar el minuto. Una
   // corrida que sigue activa se respeta tambien ahi para no sumar otro WebView.
   if (active || (previous && age >= 0 && age < COOLDOWN_MS && !config.runsInApp)) {
+    trace.event(active ? "reuse_active" : "reuse_recent");
     console.log(active ? "Ya hay una actualizacion en curso" : "Se reutiliza el fondo del ultimo minuto");
     b64 = previous ? previous.b64 : Data.fromPNG(errorImage("Ya hay una actualizacion en curso. Espera dos minutos y ejecuta una sola vez.", W, H)).toBase64String();
     store.delivery("Salida preparada con fondo reutilizado o aviso", b64);
     Script.setShortcutOutput(b64);
     store.delivery("Funcion de salida invocada (sin confirmacion de Atajos)", b64);
+    if (!context) await trace.flush();
     Script.complete();
     return;
   }
@@ -527,9 +663,10 @@ async function main() {
   let result = "ok";
   try {
     try {
-      b64 = await build(W, H, store.phase);
+      b64 = await build(W, H, store.phase, trace);
       store.save(b64);
     } catch (err) {
+      trace.error("build_error", err);
       result = "error";
       store.phase("Fondo de error", result);
       console.error(err);
@@ -547,13 +684,17 @@ async function main() {
       await QuickLook.present(Image.fromData(Data.fromBase64String(b64)), true);
     }
     store.phase("Salida preparada (sin confirmacion de Atajos)", result);
+  } catch (err) {
+    trace.error("output_error", err);
+    throw err;
   } finally {
     store.release();
   }
+  if (!context) await trace.flush();
   Script.complete();
 }
 
-async function build(W, H, phase) {
+async function build(W, H, phase, trace) {
   const now = new Date();
   let events = null;
   let note = "";
@@ -564,19 +705,22 @@ async function build(W, H, phase) {
       const g = await loadFromGoogle();
       events = g.events;
       googleCals = g.calendars;
+      trace.event("google_ok", { count: events.length });
       console.log("Google: " + events.length + " eventos de " + [...googleCals].join(", "));
-    } catch (err) { console.error(err); note = " · sin Google"; }
+    } catch (err) { trace.error("google_error", err); console.error(err); note = " · sin Google"; }
   }
   phase("Calendarios del iPhone");
   const phone = await loadFromIPhone(now);
+  trace.event("phone_ok", { count: phone.length });
   console.log("iPhone: " + phone.length + " eventos");
   let tasks = [];
   if (CONFIG.todoistToken) {
     phase("Consulta a Todoist");
     try {
       tasks = await loadFromTodoist(now);
+      trace.event("todoist_ok", { count: tasks.length });
       console.log("Todoist: " + tasks.length + " tareas");
-    } catch (err) { console.error(err); note += " · sin Todoist"; }
+    } catch (err) { trace.error("todoist_error", err); console.error(err); note += " · sin Todoist"; }
   }
   // Del iPhone solo lo que Google no trajo: si no, cada evento saldria dos veces
   // y el de Google es el que tiene el color del evento.
@@ -615,6 +759,7 @@ async function build(W, H, phase) {
   };
   phase("Dibujo en WebView");
   const b64 = await renderImage(payload, W, H);
+  trace.event("render_ok", { width: W, height: H, base64Chars: b64.length });
   console.log("Dibujo listo: " + W + "x" + H);
   return b64;
 }

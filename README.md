@@ -124,6 +124,7 @@ const MI_CONFIG = {
 | `background`, `textColor`, `mutedColor` | Colores |
 | `showUpdated` | Mostrar `act. HH:MM` |
 | `googleUrl` | Color de cada evento de Google (ver abajo) |
+| `logRemote` | Envía el historial técnico al puente de Google actualizado. Por defecto `false`; ver [activar logs](docs/Logs.md) |
 | `todoistToken` | Suma las tareas de Todoist (ver abajo) |
 | `todoistOnlyMine` | Solo tus tareas o las sin asignar. Por defecto `true` |
 
@@ -184,6 +185,7 @@ Si en el paso 5 no aparece "Cualquier usuario", tu cuenta es de una empresa
 | El lock screen muestra otro fondo | El Atajo pinta el fondo elegido en la acción, no el activo. Mantené apretado el lock screen y elegí ese |
 | Aparece un cartel con ✓ y "Listo" cada vez que corre | Apagá **"Mostrar al ejecutar"** en la acción "Run with Parameter" (debajo de "Texts" y "URLs") |
 | "Script completed without presenting UI… or outputting a value" | Scriptable terminó sin entregar la imagen; el mensaje no dice la causa. v0.13 reduce las corridas repetidas y guarda la última etapa. Esperá dos minutos y ejecutá una sola vez con internet. Si sigue, consultá el diagnóstico de abajo |
+| "Shortcuts no pudo convertir de Texto a NSString" en Base64 | El fallo está en la conversión de Atajos, después de Scriptable. El historial puede mostrar qué PNG preparó la corrida; no captura automáticamente ese error de otra acción |
 | El fondo sale negro con un error en rojo | Es el error real, escrito para poder leerlo: mandale una captura al que lo mantiene |
 | Arriba dice `sin Google` o `sin Todoist` | No pudo conectarse. Revisá la URL o el token en `MI_CONFIG`. El resto del fondo sale igual |
 | Faltan eventos | Revisá que el calendario esté en el iPhone (app Calendario → Calendarios) y que su nombre esté en `onlyCalendars` |
@@ -208,6 +210,12 @@ El estado `ok` indica que el script preparó la salida sin error de JavaScript;
 vuelve a correr el calendario ni reemplaza el registro. Si no hay registro, puede
 estar usando una versión anterior a v0.13, haber fallado antes de iniciar el script
 o no haber podido guardar el archivo.
+
+Desde v0.15 también conserva un historial por corrida, incluidos los fondos
+reutilizados. Se puede enviar automáticamente al puente de Google existente:
+seguí [Historial local y logs en Google](docs/Logs.md) para activarlo y consultar
+los registros privados. La implementación de Google necesita actualizarse una
+vez; publicar el código en GitHub no actualiza ese servidor.
 
 ### Actualizar un cargador anterior a v0.14
 
@@ -236,10 +244,11 @@ cargador que ya está pegado.
    ```
 3. Ejecutá el Atajo una vez. Si sigue fallando, consultá el diagnóstico actualizado.
 
-El retorno está verificado con APIs simuladas y la primera ejecución manual con
-el cargador actualizado funcionó en el iPhone. Falta comprobar su estabilidad con
-las automatizaciones repetidas. La causa del fallo anterior todavía no está
-confirmada.
+El retorno está verificado con APIs simuladas y una ejecución manual con el
+cargador actualizado funcionó en el iPhone, pero después se reportó un fallo en
+Base64. La estabilidad y la causa de los errores todavía no están confirmadas.
+Para instalar también el historial del cargador v0.15, usá el bloque y los pasos
+de [la guía de logs](docs/Logs.md).
 
 ---
 
@@ -268,6 +277,8 @@ confirmada.
 | `google/Code.gs` | El puente opcional con Google Calendar |
 | `tools/preview.cjs` | Vista previa en la compu, con datos de ejemplo |
 | `tools/diagnostico.js` | Se ejecuta en Scriptable para leer la última etapa después de un corte |
+| `google/Logs.gs` | Bloque que se agrega al puente existente para guardar y leer logs técnicos autenticados |
+| `tools/ver-logs-google.js` | Consulta los registros recibidos por el puente sin mostrar su token |
 | `docs/Bitacora.md` | Estado del proyecto, decisiones tomadas y problemas conocidos |
 | `CLAUDE.md` | Instrucciones para agentes de IA que trabajen en el repo |
 
@@ -277,6 +288,7 @@ corrida: un error rompe el fondo de todos. Antes de subir:
 ```sh
 node --input-type=module --check < LockScreenCal.js
 node tools/check-shortcut.cjs   # entrega a Atajos con APIs simuladas
+node tools/check-logs.cjs       # historial, reintentos, autenticación y privacidad
 npm i playwright && npx playwright install chromium
 node tools/preview.cjs          # -> preview/preview.png
 ```
