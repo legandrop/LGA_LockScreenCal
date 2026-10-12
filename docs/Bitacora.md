@@ -7,54 +7,50 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 
 ## Resumen
 
-**El Atajo sigue siendo intermitente.** El 12/10 se probó el retorno del cargador
-v0.14: una corrida manual funcionó y después volvió a fallar. La captura más
-reciente muestra otro error, en la acción Base64: **Shortcuts no pudo convertir
-de Texto a NSString**. Ocurre después de Scriptable y no lo puede capturar un
-`catch` del calendario. No atribuirlo a memoria, tiempo, Google ni Todoist sin
-evidencia. El diagnóstico v0.13 había llegado a "Salida entregada", 7.8 s, estado
-ok; ese registro solo confirmaba que se llamó a la función de salida y podía
-corresponder a otra corrida. La etiqueta quedó corregida desde v0.14.
+**El Atajo sigue siendo intermitente; no se ha confirmado una solucion en iOS.**
+El historial recibido el 12/10 muestra una consulta a Google que duro casi cinco
+minutos y termino en `timeout`; Todoist y el dibujo terminaron rapido. Otra corrida
+reutilizo un PNG y preparo el retorno en 1.5 s. Las etapas de salida no confirman
+que Atajos recibio el texto, decodifico el PNG ni aplico el fondo. Se observaron
+fallos tanto en Scriptable como en la accion Base64 de Atajos.
 
-**v0.15 agrega historial por corrida y envío privado al puente de Google.** Lega
-pidió logs persistentes y aprobó usar su puente existente. Cada corrida tiene su
-propio ID y archivo, con etapas, tiempos, cantidades y tamaño del PNG. Se conservan
-100 corridas locales y 50 en Google. No se suben títulos, nombres de calendarios,
-claves, contenido del PNG ni mensajes crudos de excepciones. Los códigos de error
-y las etapas permiten identificar fallos de JavaScript y de red. Si iOS termina
-el proceso, una corrida posterior intenta subir el último estado pendiente.
+**v0.16 limita la espera de Google a 12 s mediante Timer y Promise.race.**
+`Request.timeoutInterval` limita inactividad, no tiempo total. Al vencer el nuevo
+limite se continua con los calendarios del iPhone. El temporizador no cancela la
+peticion nativa ni corre mientras iOS suspende el proceso. Los envios de registros
+usan el mismo mecanismo con 2 s. Las respuestas tardias no modifican el resultado.
 
-El bloque `google/Logs.gs` se agrega al final del puente existente y usa su TOKEN.
-**Falta que Lega actualice esa implementación**, agregue `logRemote: true` a su
-MI_CONFIG e instale el bloque `tools/loader-body.js` desde `const URL =` hasta el
-final del Atajo. El código del script principal llega automáticamente; el
-cargador y la implementación de Google necesitan esa actualización manual. Los
-pasos están en `docs/Logs.md`. `tools/diagnostico.js` muestra el historial local y
-`tools/ver-logs-google.js` consulta los registros remotos sin mostrar la clave.
+**Lega pide una sola instalacion y mantenimiento remoto, sin copiar diagnosticos.**
+Ya instalo el cargador v0.15 y activo `logRemote`. No volver a pedir capturas o
+exports como procedimiento habitual. El bloque `google/Logs.gs` no tiene despliegue
+real confirmado y los envios observados fallaban; no depender de que Lega edite
+Apps Script para habilitar registros.
 
-Sintaxis, salida simulada, fallos de envío que no impiden devolver el PNG,
-autenticación del puente, reintentos, deduplicación, recuperación de una corrida
-interrumpida, retención y privacidad verificados con APIs simuladas. Vista previa
-en Chromium revisada. **Falta validar el circuito real en Google y el iPhone.**
-`loader_return_prepared` no confirma que Base64 decodificó ni que se aplicó el
-fondo; hace falta una confirmación posterior desde el Atajo para asegurar eso.
+Se creo y publico un receptor propio con Sites, actualmente privado. La escritura
+requiere clave derivada del token local; no hay API publica de lectura. Guarda
+solo etapas, tiempos, cantidades, codigos y tamanos, hasta 500 corridas. Se verifico
+un POST real y su lectura directa mediante las herramientas de administracion de
+D1. Fue un registro sintetico, no del iPhone. Ver `docs/Receptor.md` para identidad,
+ubicacion del proyecto, acceso y procedimiento de consulta.
 
-Durante la instalación de los logs, Lega consultó dónde agregar `logRemote: true`
-y qué tramo reemplazar por el nuevo cargador. La captura posterior, a las 16:38
-locales, volvió a mostrar **Script completed without… outputting a value** en la
-primera acción de Scriptable. Todavía no se recibió el historial de esa corrida
-ni se confirmó la actualización del puente de Google. Consultar la versión actual
-de `tools/diagnostico.js` en el teléfono antes de cambiar otra vez la entrega.
+Sintaxis, entrega simulada, fallback de Google que nunca responde, plazos de logs,
+SHA-256, limpieza de temporizadores, reintentos, revisiones, privacidad y retencion
+verificados. Vista previa de Chromium revisada. El receptor se probo con SQLite
+real, se construyo y se desplego correctamente. Falta un registro real del telefono.
 
 ## Pendiente
 
-0. **Activar y probar los logs de v0.15** siguiendo `docs/Logs.md`. Consultar Google
-   con `tools/ver-logs-google.js` y comprobar que llegan corridas reales. Después
-   reproducir el fallo y correlacionar hora, ID, última etapa y tamaño del PNG.
-   Para la captura de las 16:38, pedir primero el historial local actualizado;
-   no asumir que esta corrida llegó al retorno ni que el puente está activo.
-   Si el fallo sigue en Base64, revisar la salida que recibió Atajos; el historial
-   de Scriptable no registra el error de otra acción ni confirma el fondo aplicado.
+0. **Completar la activacion del receptor.** El sitio conserva su audiencia privada.
+   Para usar la recepcion desde Atajos sin una nueva credencial de servicio,
+   hace falta que Lega autorice explicitamente el acceso publico al endpoint de
+   escritura autenticado. Preparado y probado antes de pedir esa decision.
+   Despues de esa autorizacion, cambiar acceso con Sites y verificar rechazo de
+   envios sin clave y escritura valida sin bypass de plataforma. Una sola linea
+   `logCollector` en su MI_CONFIG selecciona el receptor; el cargador ya instalado
+   descarga el resto. No necesita otro script de diagnostico ni cambios en Google.
+   Consultar nosotros D1 para confirmar la primera corrida real; no declararlo
+   activo hasta recibirla. Los registros conservan la limitacion de que no ven
+   errores de las acciones posteriores de Atajos.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice

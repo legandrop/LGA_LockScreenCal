@@ -58,7 +58,8 @@ fondo. Lo usa Lega y la idea es pasárselo a su familia y amigos.
 `drawCalendar` **no puede usar nada de afuera de la función**: se inyecta en el
 WebView con `drawCalendar.toString()`.
 
-El historial técnico de v0.15 se explica en `docs/Logs.md`. No incluye mensajes
+El historial técnico y el receptor administrado se explican en `docs/Logs.md` y
+`docs/Receptor.md`. No pedir a Lega exports como procedimiento habitual. No incluye mensajes
 crudos de excepciones ni datos de eventos. Después de cambios en el cargador,
 mantener `tools/loader-body.js` igual al bloque desde `const URL =` de `loader.js`
 y ejecutar `node tools/check-shortcut.cjs` y `node tools/check-logs.cjs`.

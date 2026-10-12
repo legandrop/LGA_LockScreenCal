@@ -1,66 +1,59 @@
-# Historial local y logs en Google
+# Registros y mantenimiento remoto
 
-Desde v0.15 cada ejecución guarda su propio archivo en Scriptable: fecha, ID,
-versión, etapas, tiempos, cantidad de eventos y tareas, tamaño del PNG y códigos
-de error técnicos. El historial local conserva hasta 100 corridas (puede superar
-el límite mientras otras corridas recientes terminan); Google conserva las
-últimas 50. Cada corrida conserva sus últimas 50 etapas.
+Cada corrida conserva un ID, version, etapas, tiempos, cantidades, tamanos del PNG
+y codigos de error. No incluye titulos, nombres de calendarios, opciones, tokens,
+imagenes ni mensajes crudos de excepciones. Hay hasta 100 corridas locales y
+50 etapas por corrida. Una corrida posterior recupera los registros pendientes
+si iOS termino el proceso antes del envio.
 
-Los registros no incluyen títulos, nombres de calendarios, tokens, URL del puente,
-contenido del PNG ni mensajes crudos de excepciones. Estos últimos podrían
-contener datos o claves, así que se registran códigos como `TypeError` o `HTTP_503`
-junto a la etapa. La URL con token se conserva únicamente en el contenedor local
-de Scriptable para consultar el puente sin volver a escribirla.
+## Receptor administrado
 
-## Activar en el puente existente
+Desde v0.16 `logCollector` permite enviar los registros a un servicio separado
+del puente de calendario de Google. El receptor conserva hasta 500 corridas; el
+asistente las consulta directamente con herramientas de Sites. No se necesita
+instalar un visor ni copiar resultados desde el telefono.
 
-1. Abrí tu proyecto de calendario en <https://script.google.com>.
-2. Copiá [`google/Logs.gs`](../google/Logs.gs) y **pegalo al final del código que ya
-   tenés**, después de la última llave. El bloque usa tu `TOKEN` y `json_` existentes.
-3. Guardá y actualizá la implementación web existente para que ejecute una nueva
-   versión con ese código. La URL `/exec` que usa el Atajo debe seguir siendo la
-   misma. Guardar el editor no actualiza por sí solo esa implementación.
-4. En el `MI_CONFIG` del Atajo agregá:
-   ```js
-   logRemote: true,
-   ```
-5. Para registrar también la descarga y el retorno del cargador, reemplazá desde
-   `const URL =` hasta el final del código del Atajo con
-   [`tools/loader-body.js`](../tools/loader-body.js). Tu bloque `MI_CONFIG` va antes.
-6. Ejecutá el Atajo una vez con internet. GitHub puede demorar unos cinco minutos
-   en entregar la nueva versión.
+El receptor esta desplegado y probado con un registro sintetico, pero conserva
+acceso privado de plataforma. Su activacion para el telefono requiere resolver
+ese acceso y confirmar la primera corrida real. Ver [Receptor.md](Receptor.md).
 
-No se necesita una planilla ni un token de GitHub. Google guarda los datos en las
-propiedades del proyecto; tanto la lectura como la escritura exigen el token del
-puente. El bloque no reemplaza `doGet`, así que la consulta de calendarios sigue
-usando el código ya instalado. Si tu puente ya tiene un `doPost` propio, revisá
-esa función antes de agregar el bloque para evitar duplicarlo.
+Con el acceso listo, el usuario conserva su MI_CONFIG y agrega una sola opcion:
 
-## Consultar el historial
+```js
+logRemote: true,
+logCollector: "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs",
+```
 
-- **Local:** copiá la versión actualizada de
-  [`tools/diagnostico.js`](../tools/diagnostico.js) en un script de Scriptable y
-  ejecutalo. Muestra las últimas diez corridas y si Google confirmó cada registro.
-- **Google:** copiá [`tools/ver-logs-google.js`](../tools/ver-logs-google.js) en un
-  script nuevo de Scriptable y ejecutalo. Lee los registros recibidos mediante
-  `POST` con `action: "read_logs"`; la URL y la clave no aparecen en el resultado.
-  Ese texto se puede compartir para revisar el fallo.
+Si `logRemote` ya esta presente, no duplicarlo. El cargador v0.15 ya instalado baja
+la funcion de telemetria de `LockScreenCal.js` en cada corrida. No hace falta volver
+a reemplazar el cargador ni actualizar Apps Script para esta via.
 
-El envío usa lotes de hasta cinco corridas y tiene un límite de dos segundos por
-petición. Se intentan recuperar las pendientes al empezar y enviar el estado
-actual antes del retorno del cargador. Un fallo de envío no bloquea la imagen:
-queda marcado como pendiente y se reintenta en una corrida posterior. Cuando no
-hay internet o se supera la retención, no se garantiza conservar todos los logs.
+La clave de escritura se deriva localmente con SHA-256 y un prefijo propio del
+servicio a partir del token de Google. El receptor recibe esa clave derivada,
+nunca el token original. Solo acepta el usuario configurado en el gestor de
+secretos; no es un servicio abierto para otros usuarios del repo. El token de
+Todoist tampoco se transmite. La clave de escritura no concede lectura.
 
-## Qué confirma cada etapa
+Los lotes tienen hasta cinco corridas. Se recuperan pendientes al comenzar y se
+intenta enviar el estado final antes del retorno. El envio espera hasta 2 s con
+Timer, ademas del timeout de inactividad de Request. Si falla, se marca pendiente
+y se reintenta. El temporizador no cancela la red nativa y no funciona mientras
+iOS suspende el proceso. Sin conexion o al superar la retencion pueden perderse
+registros. Una conexion abierta no debe prolongar voluntariamente la espera por
+logs durante minutos.
 
-`loader_return_prepared` significa que el cargador obtuvo un PNG base64 válido y
-está por devolverlo. **No significa que Atajos lo decodificó o puso el fondo.**
-Un error posterior en Base64 o en la acción de fondo ocurre fuera de Scriptable y
-no puede ser capturado por su `catch`.
+## Compatibilidad con Google
 
-Si iOS mata el proceso tampoco puede ejecutarse un `catch` ni el envío final. El
-último evento queda localmente y la siguiente corrida intenta subirlo. Una etapa
-sin continuación muestra dónde llegó; no prueba por sí sola si el proceso fue
-terminado por memoria, tiempo o un fallo del sistema. Las pruebas en la nube
-simulan las APIs; falta validar el envío en el puente y el iPhone reales.
+Sin `logCollector` se conserva el envio v0.15 al puente propio. Esa via requiere
+el addon [google/Logs.gs](../google/Logs.gs) desplegado junto al puente y conserva
+50 corridas remotas. No forma parte de la nueva instalacion de Lega.
+
+## Alcance del diagnostico
+
+`loader_return_prepared` confirma que el cargador preparo un PNG base64 valido.
+No confirma que Atajos lo recibio, decodifico ni puso como fondo. Un error posterior
+en Base64 o en la accion de fondo ocurre fuera de Scriptable. Tampoco un registro
+interrumpido demuestra por si solo un corte por memoria o por iOS.
+
+El diagnostico local [tools/diagnostico.js](../tools/diagnostico.js) sigue disponible
+para casos excepcionales; no es el procedimiento habitual del mantenimiento.

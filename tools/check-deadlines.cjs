@@ -1,0 +1,21 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const { createHash } = require('node:crypto');
+const code = fs.readFileSync(require('node:path').join(__dirname,'../LockScreenCal.js'),'utf8').split('// ==== TRACE START ====')[1].split('// ==== TRACE END ====')[0];
+let fire, invalidated=0;
+const api=vm.createContext({Timer:{schedule(ms,repeat,callback){fire=callback; return {invalidate(){invalidated++;}};}}});
+vm.runInContext(code,api);
+(async()=>{
+  for(const input of ['', 'abc', 'LockScreenCal.logs.v1:test-token', 'á中文', 'x'.repeat(2000)]) assert.equal(api.logKey(input),createHash('sha256').update(input).digest('hex'));
+  assert.equal(await api.withDeadline(Promise.resolve('ok'),12),'ok');
+  assert.equal(invalidated,1);
+  let late;
+  const waiting=api.withDeadline(new Promise(resolve=>{late=resolve;}),12);
+  fire(); await assert.rejects(waiting,/timeout/);
+  late('late'); await Promise.resolve();
+  assert.equal(invalidated,2,'Los temporizadores deben liberarse tanto al vencer como al recibir la respuesta');
+  await assert.rejects(api.withDeadline(Promise.reject(new Error('network')),12),/network/);
+  assert.equal(invalidated,3);
+  console.log('OK: SHA-256, respuesta normal, deadline, respuesta tardia y limpieza');
+})().catch(e=>{console.error(e);process.exitCode=1;});

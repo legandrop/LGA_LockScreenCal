@@ -124,7 +124,8 @@ const MI_CONFIG = {
 | `background`, `textColor`, `mutedColor` | Colores |
 | `showUpdated` | Mostrar `act. HH:MM` |
 | `googleUrl` | Color de cada evento de Google (ver abajo) |
-| `logRemote` | Envía el historial técnico al puente de Google actualizado. Por defecto `false`; ver [activar logs](docs/Logs.md) |
+| `logRemote` | Activa el envío de historial técnico. Por defecto `false`; ver [registros](docs/Logs.md) |
+| `logCollector` | Receptor administrado opcional; vacío conserva el puente de Google |
 | `todoistToken` | Suma las tareas de Todoist (ver abajo) |
 | `todoistOnlyMine` | Solo tus tareas o las sin asignar. Por defecto `true` |
 
@@ -212,10 +213,12 @@ estar usando una versión anterior a v0.13, haber fallado antes de iniciar el sc
 o no haber podido guardar el archivo.
 
 Desde v0.15 también conserva un historial por corrida, incluidos los fondos
-reutilizados. Se puede enviar automáticamente al puente de Google existente:
-seguí [Historial local y logs en Google](docs/Logs.md) para activarlo y consultar
-los registros privados. La implementación de Google necesita actualizarse una
-vez; publicar el código en GitHub no actualiza ese servidor.
+reutilizados. v0.16 permite usar un receptor administrado para consultar los
+registros directamente, sin copiar resultados del teléfono. Su despliegue está
+probado con un registro sintético; falta habilitar el acceso del teléfono y
+confirmar una corrida real. Ver [Registros y mantenimiento remoto](docs/Logs.md).
+La consulta de Google espera hasta 12 s con un temporizador antes de continuar
+con los calendarios del iPhone; iOS puede suspender ese temporizador.
 
 ### Actualizar un cargador anterior a v0.14
 
@@ -247,8 +250,8 @@ cargador que ya está pegado.
 El retorno está verificado con APIs simuladas y una ejecución manual con el
 cargador actualizado funcionó en el iPhone, pero después se reportó un fallo en
 Base64. La estabilidad y la causa de los errores todavía no están confirmadas.
-Para instalar también el historial del cargador v0.15, usá el bloque y los pasos
-de [la guía de logs](docs/Logs.md).
+El cargador v0.15 registra también descarga y retorno. Si ya está instalado,
+las mejoras de v0.16 llegan sin reemplazarlo; ver [la guía de logs](docs/Logs.md).
 
 ---
 
@@ -289,6 +292,7 @@ corrida: un error rompe el fondo de todos. Antes de subir:
 node --input-type=module --check < LockScreenCal.js
 node tools/check-shortcut.cjs   # entrega a Atajos con APIs simuladas
 node tools/check-logs.cjs       # historial, reintentos, autenticación y privacidad
+node tools/check-deadlines.cjs  # plazos, respuestas tardías, limpieza y SHA-256
 npm i playwright && npx playwright install chromium
 node tools/preview.cjs          # -> preview/preview.png
 ```

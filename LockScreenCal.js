@@ -18,9 +18,10 @@ const CONFIG = {
   //    Google no responde, usa todo del iPhone.
   googleUrl: "",
 
-  // Historial remoto en el mismo puente de Google, despues de actualizarlo.
-  // Si falla el envio, los registros quedan pendientes en el iPhone.
+  // Historial remoto opcional. Si falla, queda pendiente en el iPhone.
   logRemote: false,
+  // Receptor administrado independiente del puente de calendario. Vacio: Google.
+  logCollector: "",
 
   // Tareas de Todoist con fecha (opcional). El token se saca de Todoist:
   // Configuracion -> Integraciones -> Desarrollador. Da acceso total a la cuenta:
@@ -72,9 +73,55 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.15";
+const VERSION = "0.16";
 
 // ==== TRACE START ====
+// timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
+// El temporizador limita lo que esperamos; no cancela la peticion nativa y no
+// puede ejecutarse mientras iOS tiene suspendido el proceso.
+function withDeadline(work, ms) {
+  let timer;
+  const limit = new Promise((_, reject) => {
+    timer = Timer.schedule(ms, false, () => reject(new Error("timeout")));
+  });
+  return Promise.race([work, limit]).finally(() => timer.invalidate());
+}
+
+// Se deriva una clave de escritura, sin enviar el token de Google al receptor.
+// SHA-256 sin WebView ni imagenes nativas; probado contra node:crypto.
+function logKey(text) {
+  const bytes = unescape(encodeURIComponent(text));
+  const words = [], h = [], k = [];
+  for (let n = 2; k.length < 64; n++) {
+    let prime = true;
+    for (let d = 2; d * d <= n; d++) if (n % d === 0) { prime = false; break; }
+    if (prime) {
+      if (h.length < 8) h.push((Math.sqrt(n) % 1 * 4294967296) | 0);
+      k.push((Math.cbrt(n) % 1 * 4294967296) | 0);
+    }
+  }
+  for (let i = 0; i < bytes.length; i++) words[i >> 2] = (words[i >> 2] || 0) | bytes.charCodeAt(i) << (24 - (i % 4) * 8);
+  words[bytes.length >> 2] = (words[bytes.length >> 2] || 0) | 128 << (24 - (bytes.length % 4) * 8);
+  const length = Math.ceil((bytes.length + 9) / 64) * 16;
+  words[length - 1] = bytes.length * 8;
+  const rotate = (x, n) => x >>> n | x << (32 - n);
+  for (let offset = 0; offset < length; offset += 16) {
+    const w = Array.from({ length: 16 }, (_, i) => words[offset + i] || 0);
+    for (let i = 16; i < 64; i++) {
+      const a = w[i - 15], b = w[i - 2];
+      w[i] = (w[i - 16] + (rotate(a, 7) ^ rotate(a, 18) ^ a >>> 3) + w[i - 7] + (rotate(b, 17) ^ rotate(b, 19) ^ b >>> 10)) | 0;
+    }
+    let [a, b, c, d, e, f, g, q] = h;
+    for (let i = 0; i < 64; i++) {
+      const t = (q + (rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25)) + (e & f ^ ~e & g) + k[i] + w[i]) | 0;
+      const u = ((rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22)) + (a & b ^ a & c ^ b & c)) | 0;
+      q = g; g = f; f = e; e = (d + t) | 0; d = c; c = b; b = a; a = (t + u) | 0;
+    }
+    [a, b, c, d, e, f, g, q].forEach((v, i) => { h[i] = (h[i] + v) | 0; });
+  }
+  return h.map(x => (x >>> 0).toString(16).padStart(8, "0")).join("");
+}
+
 // El cargador reutiliza esta funcion del archivo descargado. Cada corrida tiene
 // su propio archivo para que dos automatizaciones no se pisen el historial.
 function createTelemetry(opts, version, initial) {
@@ -86,6 +133,7 @@ function createTelemetry(opts, version, initial) {
   };
   record.version = version;
   record.revision = record.revision || record.events.length;
+  const collector = opts.logCollector || "";
   record.remoteEnabled = !!(opts.logRemote && opts.googleUrl);
   const file = id => fm.joinPath(dir, id + ".json");
   const syncFile = id => fm.joinPath(dir, id + ".sync.json");
@@ -158,12 +206,20 @@ function createTelemetry(opts, version, initial) {
           return out;
         }),
       }));
-      const req = new Request(opts.googleUrl + (opts.googleUrl.includes("?") ? "&" : "?") + "action=logs");
+      const req = new Request(collector || opts.googleUrl + (opts.googleUrl.includes("?") ? "&" : "?") + "action=logs");
       req.method = "POST";
       req.headers = { "Content-Type": "application/json" };
+      if (collector) {
+        // Solo este servicio puede recibir la clave derivada; no URLs arbitrarias.
+        if (collector !== "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs") throw new Error("Receptor no permitido");
+        const token = opts.googleUrl.match(/[?&]token=([^&]+)/)?.[1];
+        if (!token) throw new Error("Falta token de logs");
+        req.headers.Authorization = "Bearer " + logKey("LockScreenCal.logs.v1:" + decodeURIComponent(token));
+      }
       req.body = JSON.stringify({ runs });
       req.timeoutInterval = 2;
-      const reply = await req.loadJSON();
+      const reply = await withDeadline(req.loadJSON(), 2000);
+      if (req.response?.statusCode !== 200) sendError = "HTTP_" + (req.response?.statusCode || 0);
       if (["token", "busy", "schema", "size", "action", "json"].includes(reply && reply.error)) sendError = "puente_" + reply.error;
       if (req.response?.statusCode !== 200 || !Array.isArray(reply && reply.accepted)) throw new Error("Respuesta de logs invalida");
       for (const r of pending) {
@@ -173,6 +229,7 @@ function createTelemetry(opts, version, initial) {
       }
     } catch (err) {
       if (err && err.name === "SyntaxError") sendError = "respuesta_no_json";
+      if (errorCode(err) === "timeout") sendError = "timeout";
       for (const r of pending) write(syncFile(r.id), {
         revision: read(syncFile(r.id))?.revision || 0, errorCode: sendError, attemptedAt: Date.now(),
       });
@@ -504,9 +561,10 @@ async function loadFromIPhone(now) {
 async function loadFromGoogle() {
   const sep = CONFIG.googleUrl.includes("?") ? "&" : "?";
   const req = new Request(CONFIG.googleUrl + sep + "days=" + ((CONFIG.startInDays || 0) + CONFIG.maxDays));
-  req.timeoutInterval = 20;
-  const json = await req.loadJSON();
-  if (!json || !Array.isArray(json.events)) throw new Error("Respuesta inesperada de Google: " + JSON.stringify(json).slice(0, 200));
+  req.timeoutInterval = 12;
+  const json = await withDeadline(req.loadJSON(), 12000);
+  if (req.response?.statusCode !== 200) throw new Error("HTTP " + req.response?.statusCode);
+  if (!json || !Array.isArray(json.events)) throw new Error("Respuesta inesperada de Google");
   // Mismo filtro de calendarios que con el iPhone, para que MI_CONFIG sirva igual
   // con las dos fuentes.
   const calendars = new Set(json.calendars || json.events.map(e => e.calendar));

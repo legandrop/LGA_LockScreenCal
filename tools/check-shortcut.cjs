@@ -15,7 +15,7 @@ const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 
 const epoch = Date.now();
 async function check({ inApp = false, renderFails = false, invalidOutput = false, useLoader = false, offline = false,
-  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false } = {}) {
+  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false, googleNeverResponds = false } = {}) {
   const calls = [];
   let output;
   let errorText = "";
@@ -29,6 +29,11 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     Date: Clock, OVERRIDES: overrides,
     console: { log() {}, error() {} },
     config: { runsInApp: inApp },
+    Timer: { schedule(ms, repeat, callback) {
+      assert.equal(ms, 12000);
+      const handle = setTimeout(callback, 0);
+      return { invalidate() { clearTimeout(handle); } };
+    } },
     Device: { screenResolution: () => ({ width: 1179, height: 2556 }) },
     Calendar: { forEvents: async () => [] },
     WebView: class {
@@ -76,6 +81,10 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
       listContents: dir => [...files.keys()].filter(name => name.startsWith(dir + "/")).map(name => name.slice(dir.length + 1)),
     }) },
     Request: class {
+      async loadJSON() {
+        assert.equal(googleNeverResponds, true);
+        return new Promise(() => {});
+      }
       response = { statusCode: 200 };
       async loadString() {
         if (offline) throw new Error("Sin internet");
@@ -125,6 +134,11 @@ async function readDiagnostic(files) {
 
 (async () => {
   await check();
+  const timedOut = await check({ overrides: { googleUrl: "https://example.test/calendar" }, googleNeverResponds: true });
+  const run = [...timedOut.entries()].find(([name]) => name.includes("/LockScreenCal-logs/") && !name.endsWith(".sync.json"));
+  const stages = JSON.parse(run[1]).events;
+  assert.equal(stages.find(e => e.stage === "google_error").errorCode, "timeout");
+  assert.ok(stages.some(e => e.stage === "phone_ok"), "Un Google que no responde debe permitir seguir con el iPhone");
   await check({ inApp: true });
   await check({ renderFails: true });
   await check({ invalidOutput: true });

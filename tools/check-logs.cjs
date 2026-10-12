@@ -26,10 +26,12 @@ const send = (body, token = "test-token", action = "logs") => server.doPost({
 const files = new Map();
 const requests = [];
 let online = true;
+let hanging = false;
 let invalidAck = false;
 let writesAvailable = true;
 const client = vm.createContext({
   console: { log() {} },
+  Timer: { schedule(ms, repeat, callback) { const handle = setTimeout(callback, ms); return { invalidate() { clearTimeout(handle); } }; } },
   FileManager: { local: () => ({
     libraryDirectory: () => "/cache", joinPath: (a, b) => a + "/" + b, createDirectory() {},
     writeString: (key, value) => { if (!writesAvailable) throw new Error("Disco lleno"); files.set(key, value); },
@@ -42,6 +44,8 @@ const client = vm.createContext({
       assert.equal(this.method, "POST");
       assert.equal(this.timeoutInterval, 2, "El envio no debe bloquear el fondo indefinidamente");
       requests.push(JSON.parse(this.body));
+      if (this.url.includes("chatgpt.site")) assert.equal(this.headers.Authorization, "Bearer " + require("node:crypto").createHash("sha256").update("LockScreenCal.logs.v1:test-token").digest("hex"));
+      if (hanging) return new Promise(() => {});
       if (!online) throw new Error(this.url + " SECRET_NETWORK_MESSAGE");
       if (invalidAck) return { accepted: [] };
       return send(JSON.parse(this.body));
@@ -122,6 +126,16 @@ const sync = id => JSON.parse(files.get("/cache/LockScreenCal-logs/" + id + ".sy
   for (const secret of ["SECRET_EVENT", "SECRET_PROJECT", "SECRET_TODOIST", "SECRET_NETWORK_MESSAGE", "test-token"]) {
     assert.ok(!transmitted.includes(secret), "Dato privado transmitido: " + secret);
   }
+  options.logCollector = "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs";
+  const managed = newTrace(); managed.event("loader_start");
+  await managed.flush();
+  assert.equal(sync(managed.id).revision, 1, "El receptor propio debe confirmar la corrida con la clave derivada");
+  managed.event("script_start"); hanging = true;
+  await managed.flush();
+  assert.equal(sync(managed.id).errorCode, "timeout", "La espera de logs debe terminar aunque la conexion siga abierta");
+  hanging = false;
+  await managed.flush();
+  assert.equal(sync(managed.id).revision, 2);
   writesAvailable = false;
   assert.doesNotThrow(() => newTrace().event("script_start"));
   console.log("OK: historial por corrida, Google autenticado, reintentos, cortes, deduplicacion, retencion y privacidad");
