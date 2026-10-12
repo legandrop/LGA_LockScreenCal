@@ -18,7 +18,13 @@ Recepcion publica habilitada el 12/10/2026 tras la respuesta afirmativa de Lega
 al pedido de activacion. La lectura de D1 sigue reservada a la administracion.
 Probado sin bypass de plataforma: envio sin clave y con clave incorrecta devuelve
 401; clave valida devuelve 200 y se confirma en D1; GET a la ruta devuelve 405.
-Solo hay registros sinteticos de prueba, no corridas reales del telefono.
+Hay registros sinteticos de prueba; las peticiones del telefono llegaron pero
+fueron rechazadas inicialmente por una clave incorrecta configurada a partir de
+una captura. Se corrigio el secreto en Sites y se redesplego la misma fuente con
+revision de entorno 2. El token exacto se obtuvo del cargador compartido por Lega;
+no se guarda en esta documentacion ni en fuente. Se confirmo un POST con la clave
+corregida. Falta la primera corrida real almacenada; la proxima ejecucion del
+Atajo debe recuperar las corridas pendientes sin editar el telefono.
 
 Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error
 1010, antes de entrar al Worker. Con User-Agent `LockScreenCal/0.16` llegaron al

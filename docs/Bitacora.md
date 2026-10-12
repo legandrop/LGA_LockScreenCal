@@ -41,18 +41,23 @@ real, se construyo y se desplego correctamente. Falta un registro real del telef
 
 ## Pendiente
 
-0. **Confirmar la conexion del telefono al receptor.** Lega respondio afirmativamente
-   al pedido de activacion; se habilito acceso publico de plataforma conservando
-   autenticacion de escritura y lectura privada. Probado sin bypass: 401 sin clave
-   o con clave incorrecta, 200 con clave valida, 405 al intentar lectura por GET.
-   Lega abrio la pagina y ejecuto el Atajo, que volvio a fallar. No hay corridas
-   reales recibidas todavia; abrir la pagina no configura el cargador del telefono.
-   La opcion `logCollector` en su MI_CONFIG selecciona el receptor. Mantener
-   `logRemote: true`; no pedir otro visor ni cambios en Google. Consultar nosotros
-   D1 para confirmar la primera corrida real. No atribuir el error de Atajos al
-   403 de Python: ese rechazo fue de nuestro cliente de prueba y se resolvio con
-   identificacion User-Agent. El calendario captura fallos del envio de registros
-   y conserva pendientes, sin propagarlos voluntariamente a la salida.
+0. **Confirmar la primera corrida real almacenada.** Lega compartio el cargador
+   instalado: `logRemote` y `logCollector` estan correctos, y usa el cargador
+   v0.15 que descarga la telemetria v0.16. Las peticiones reales llegaban al
+   receptor pero devolvian 401. Causa de los logs rechazados: al leer una captura
+   se interpreto un salto de linea como guion y se configuro una clave derivada
+   incorrecta. No era un error de configuracion del usuario. Se reemplazo el secreto
+   de Sites a partir del token exacto compartido, sin guardar valores en fuente,
+   y se redesplego la misma version del receptor (revision de entorno 2).
+   La nueva clave confirmo un POST real de prueba con 200 y lectura en D1; sin
+   clave o con clave incorrecta devuelve 401 y GET devuelve 405. El puente de
+   Google exacto del usuario tambien devolvio JSON valido en 9.1 s desde la nube.
+   Esto no confirma la causa del error del fondo. Se pidio una ejecucion mas del
+   Atajo sin tocar codigo ni copiar resultados para consultar nosotros el historial
+   pendiente. Falta recibirla. No pedir al usuario que vuelva a agregar opciones
+   que ya tiene ni que cambie el TOKEN: el problema de autenticacion se resolvio
+   exclusivamente en el servidor. Las acciones posteriores de Atajos siguen fuera
+   del alcance de estos registros.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
