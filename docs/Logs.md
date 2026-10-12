@@ -83,6 +83,13 @@ documentados en [Scriptable](https://docs.scriptable.app/args/); su ubicacion pu
 variar en la interfaz. Esa accion reemplaza la inline; `Decodificar` debe tomar
 el `Output` de la nueva accion. La accion de establecer fondo conserva sus ajustes.
 
+En la interfaz observada, tocar `Parameter` abre el selector de archivos.
+Para pasar texto estatico se agrega una accion Texto con `atajo` antes de Run
+y se conecta su salida como variable. No se busca esa variable en Archivos.
+[Apple documenta](https://support.apple.com/es-es/guide/shortcuts/apdd02c2780c/ios)
+que algunos parametros requieren mantener pulsado para sustituirlos por variables;
+ese gesto todavia necesita confirmacion en la interfaz de este telefono.
+
 ## Alcance del diagnostico
 
 `loader_return_prepared` confirma que el cargador preparo un PNG base64 valido.

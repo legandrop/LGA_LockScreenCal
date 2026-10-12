@@ -87,6 +87,15 @@ directamente en D1, sin pedir diagnosticos al usuario.
    `Decodificar`. Conservar la accion de fondo. Validar una ejecucion y leer D1.
    No pedir que copie codigo, tokens o logs. Esta alternativa abre Scriptable
    durante la actualizacion; falta comprobar que Atajos reciba y aplique el PNG.
+   La captura de las 20:16 confirma Texto con `atajo` antes del Run guardado y
+   Run In App activado. Parameter sigue sin conectar: tocarlo abre el selector
+   de ARCHIVOS (confirmado por Recientes/Compartido/Explorar), no de variables.
+   Las indicaciones de buscar `Texto` alli fueron incorrectas. Apple documenta
+   mantener pulsados algunos parametros para sustituirlos por variables:
+   https://support.apple.com/es-es/guide/shortcuts/apdd02c2780c/ios.
+   Siguiente gesto a comprobar: cerrar Archivos y mantener pulsado Parameter,
+   luego seleccionar la salida de Texto desde el menu de variables. No afirmar
+   que ese menu ya se vio en este telefono; no pedir otra busqueda de archivos.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
