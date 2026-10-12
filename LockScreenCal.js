@@ -192,7 +192,10 @@ function createTelemetry(opts, version, initial) {
     let pending = [];
     let sendError = "envio_fallido";
     try {
-      pending = list().filter(r => (!previousOnly || r.id !== record.id) &&
+      // La memoria de esta corrida sigue disponible aunque el disco local no
+      // pueda escribirse o leerse. El primer envio no depende de releer su archivo.
+      pending = [record, ...list().filter(r => r.id !== record.id)].filter(r =>
+        Array.isArray(r.events) && r.events.length && (!previousOnly || r.id !== record.id) &&
         (read(syncFile(r.id))?.revision || 0) < (r.revision || r.events.length))
         // El intento actual no debe quedar detras de una cola de pendientes.
         .sort((a, b) => Number(b.id === record.id) - Number(a.id === record.id) || a.startedAt - b.startedAt).slice(0, 5);

@@ -51,7 +51,9 @@ real, se construyo y se desplego correctamente. Falta un registro real del telef
    v0.18 intenta enviar el inicio actual antes de Device/calendarios y el estado
    justo antes del WebView. Prioriza el intento actual sobre pendientes anteriores
    para que una cola larga no oculte la corrida que queremos diagnosticar. Conserva
-   limites de 2 s por envio y no detiene la salida si falla el receptor. Cada
+   limites de 2 s por envio y no detiene la salida si falla el receptor. El primer
+   envio usa el registro en memoria; no depende de releer su archivo local si
+   fallo la escritura. Esa recuperacion se verifica con almacenamiento indisponible. Cada
    render agrega un envio previo: no interpretar esto como una solucion del fallo
    de Atajos. Pruebas verifican que inicio y render_start llegan antes de dibujar,
    y que la corrida actual queda primera aun con una cola larga. El cargador que

@@ -147,6 +147,10 @@ const sync = id => JSON.parse(files.get("/cache/LockScreenCal-logs/" + id + ".sy
   await managed.flush();
   assert.equal(sync(managed.id).revision, 2);
   writesAvailable = false;
-  assert.doesNotThrow(() => newTrace().event("script_start"));
+  const volatile = newTrace();
+  assert.doesNotThrow(() => volatile.event("script_start"));
+  await volatile.flush();
+  assert.ok(requests.at(-1).runs.some(r => r.id === volatile.id), "Sin escritura local se debe enviar el registro actual desde memoria");
+  assert.ok(server.readLogRuns_().some(r => r.id === volatile.id));
   console.log("OK: historial por corrida, Google autenticado, reintentos, cortes, deduplicacion, retencion y privacidad");
 })().catch(err => { console.error(err); process.exitCode = 1; });

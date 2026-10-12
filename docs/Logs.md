@@ -40,7 +40,8 @@ Todoist tampoco se transmite. La clave de escritura no concede lectura.
 Los lotes tienen hasta cinco corridas. Desde v0.18 se prioriza la corrida actual,
 se intenta enviar su inicio antes de consultar calendarios, un punto antes del
 WebView y el estado final antes del retorno. Cada lote tambien puede recuperar
-pendientes anteriores. El envio espera hasta 2 s con
+pendientes anteriores. El intento actual tambien se envia desde memoria si no
+pudo guardarse localmente. El envio espera hasta 2 s con
 Timer, ademas del timeout de inactividad de Request. Si falla, se marca pendiente
 y se reintenta. El temporizador no cancela la red nativa y no funciona mientras
 iOS suspende el proceso. Sin conexion o al superar la retencion pueden perderse
