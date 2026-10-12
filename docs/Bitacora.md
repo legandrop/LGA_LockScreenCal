@@ -25,6 +25,9 @@ distinguen espera continua de red de suspension de callbacks. Los envios de regi
 usan el mismo mecanismo con 2 s. Las respuestas tardias no modifican el resultado.
 
 **Lega pide una sola instalacion y mantenimiento remoto, sin copiar diagnosticos.**
+**La automatizacion debe funcionar sin abrir una app.** Lega rechazo como
+solucion permanente la ejecucion en primer plano al probar el Atajo guardado.
+Run In App fue una prueba diagnostica; no darlo por solucion del objetivo.
 Ya instalo el cargador v0.15 y activo `logRemote`. No volver a pedir capturas o
 exports como procedimiento habitual. El bloque `google/Logs.gs` no tiene despliegue
 real confirmado y los envios observados fallaban; no depender de que Lega edite
@@ -57,7 +60,8 @@ Una ejecucion manual muestra la vista previa; el parametro `atajo` la omite.
 Todoist tambien tiene un plazo logico de 15 s, sujeto a la misma suspension.
 Esto NO convierte por codigo una ejecucion en segundo plano en primer plano.
 La alternativa abre Scriptable. La ejecucion manual en el telefono ya funciono;
-falta validar su llamada desde Atajos y la automatizacion.
+su llamada desde Atajos tambien completo una corrida en primer plano. Falta
+probar la accion guardada en segundo plano y la estabilidad de la automatizacion.
 
 Se probaron instalacion sin secretos en archivos, proteccion de archivos
 personales, cache offline, descargas invalidas, salida nativa despues del await,
@@ -75,27 +79,30 @@ confirmo que Scriptable mostro la imagen. Esto valida esa corrida manual, no
 la recepcion de Atajos ni estabilidad repetida. Los registros se consultaron
 directamente en D1, sin pedir diagnosticos al usuario.
 
+La llamada del Atajo al script guardado a las 20:22:51 (`mv5vns7o-c3f3imuqgjs`)
+respondio Google en 7.7 s, Todoist en 0.8 s y preparo el retorno en 13.5 s.
+No registro app_preview. Lega dijo que cree que funciono, pero abrio Scriptable
+y eso es inaceptable para su automatizacion frecuente. El registro confirma
+preparacion de salida, no aplicacion final del fondo. La ejecucion de la accion
+GUARDADA con Run In App apagado aun no se ha probado; la accion INLINE anterior
+si fallo en ese contexto. Son rutas de entrega distintas (setter nativo y complete
+exteriores en la guardada, return en la inline), sin prueba de que eso por si solo
+resuelva los tiempos o limites de la extension.
+
 ## Pendiente
 
-0. **Cambiar y probar la primera accion del Atajo.** El script guardado ya
-   esta preparado y mostro la imagen en Scriptable. Buscar Scriptable en Atajos,
-   elegir la accion que ejecuta un script guardado (`Run Script` en la documentacion),
-   seleccionar `LGA_LockScreenCal_App`, parametro `atajo`, y activar la ejecucion
-   dentro de la app (`Run in App`). Estas opciones estan documentadas en
-   https://docs.scriptable.app/args/; confirmar su ubicacion si la UI difiere.
-   Reemplazar la accion inline y reconectar el `Output` de la nueva accion a
-   `Decodificar`. Conservar la accion de fondo. Validar una ejecucion y leer D1.
-   No pedir que copie codigo, tokens o logs. Esta alternativa abre Scriptable
-   durante la actualizacion; falta comprobar que Atajos reciba y aplique el PNG.
-   La captura de las 20:16 confirma Texto con `atajo` antes del Run guardado y
-   Run In App activado. Parameter sigue sin conectar: tocarlo abre el selector
-   de ARCHIVOS (confirmado por Recientes/Compartido/Explorar), no de variables.
-   Las indicaciones de buscar `Texto` alli fueron incorrectas. Apple documenta
-   mantener pulsados algunos parametros para sustituirlos por variables:
+0. **Probar la accion guardada en segundo plano.** Mantener Run del script
+   `LGA_LockScreenCal_App`, parametro conectado a Texto `atajo`, y Output de ese
+   Run conectado a Decodificar. Cambiar solo Run In App a apagado y ejecutar
+   una vez; leer D1. No prometer estabilidad por una sola corrida ni regresar a
+   la accion inline. No pedir codigo ni exports. Si falla, diagnosticar esa
+   ruta en extension; abrir Scriptable permanentemente no satisface el objetivo.
+   La captura de las 20:19 confirma Run with Texto; su Output estaba rojo y se
+   indico reconectarlo antes de la prueba. Parameter abre ARCHIVOS al tocarlo
+   una vez. Mantenerlo pulsado permitio elegir la variable Texto; ya se confirmo
+   ese gesto en su telefono. Procedimiento de Apple:
    https://support.apple.com/es-es/guide/shortcuts/apdd02c2780c/ios.
-   Siguiente gesto a comprobar: cerrar Archivos y mantener pulsado Parameter,
-   luego seleccionar la salida de Texto desde el menu de variables. No afirmar
-   que ese menu ya se vio en este telefono; no pedir otra busqueda de archivos.
+   Nunca pedir buscar variables en el buscador de Archivos.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
