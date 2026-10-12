@@ -68,7 +68,68 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.12";
+const VERSION = "0.13";
+
+// Salir varias veces de una app dispara varias automatizaciones. Se guarda el
+// ultimo fondo para que esas corridas no repitan consultas y WebViews; el aviso
+// de corrida activa vence solo si iOS mata el proceso sin ejecutar finally.
+const COOLDOWN_MS = 60000;
+const ACTIVE_MS = 120000;
+
+function runStore() {
+  const fm = FileManager.local();
+  const file = name => fm.joinPath(fm.libraryDirectory(), "LockScreenCal-" + name);
+  const read = name => {
+    try { return fm.fileExists(file(name)) ? fm.readString(file(name)) : null; }
+    catch (_) { return null; }
+  };
+  const json = name => {
+    try { return JSON.parse(read(name)); } catch (_) { return null; }
+  };
+  const write = (name, value) => {
+    try { fm.writeString(file(name), value); return true; }
+    catch (_) { console.log("No se pudo guardar el registro local"); return false; }
+  };
+  // Solo identifica cambios de ajustes para invalidar el fondo guardado.
+  // No se escriben tokens, URLs ni eventos en los archivos de diagnostico.
+  let hash = 2166136261;
+  for (const c of JSON.stringify(CONFIG)) hash = Math.imul(hash ^ c.charCodeAt(0), 16777619);
+  const key = VERSION + ":" + (hash >>> 0);
+  const startedAt = Date.now();
+  const id = startedAt + ":" + Math.random();
+  let state;
+  const phase = (name, result = "en curso") => {
+    state = { version: VERSION, startedAt, updatedAt: Date.now(), phase: name, result };
+    write("run.json", JSON.stringify(state));
+    console.log("v" + VERSION + " · " + name + " · " + ((state.updatedAt - startedAt) / 1000).toFixed(1) + " s");
+  };
+  const cached = () => {
+    const info = json("output.json");
+    if (!info || info.key !== key) return null;
+    const b64 = read("output.txt");
+    return typeof b64 === "string" && b64.startsWith("iVBORw0KGgo") ? { b64, at: info.at } : null;
+  };
+  return {
+    phase, cached,
+    active: () => {
+      const run = json("active.json");
+      const age = run && Date.now() - run.startedAt;
+      return !!run && age >= 0 && age < ACTIVE_MS;
+    },
+    begin: () => {
+      write("active.json", JSON.stringify({ id, startedAt }));
+      phase("Inicio");
+    },
+    save: b64 => {
+      if (write("output.txt", b64)) write("output.json", JSON.stringify({ key, at: Date.now() }));
+    },
+    release: () => {
+      try {
+        if (json("active.json")?.id === id) fm.remove(file("active.json"));
+      } catch (_) { console.log("La marca de corrida activa vencera sola"); }
+    },
+  };
+}
 
 // ==== RENDER START ====
 // Dibuja el calendario en un <canvas>. Corre dentro de un WebView (en el iPhone)
@@ -419,6 +480,10 @@ async function renderImage(payload, W, H) {
 // Atajos solo dice "Script completed without... outputting a value" y no se
 // sabe que paso. Se dibuja con DrawContext, por si lo que fallo es el WebView.
 function errorImage(msg, W, H) {
+  // Si el proceso ya tiene problemas, el diagnostico no necesita una imagen
+  // nativa a resolucion completa. Se conserva la proporcion de la pantalla.
+  const scale = Math.min(1, 390 / W);
+  W = Math.round(W * scale); H = Math.round(H * scale);
   const dc = new DrawContext();
   dc.size = new Size(W, H);
   dc.opaque = true;
@@ -434,28 +499,55 @@ function errorImage(msg, W, H) {
 async function main() {
   const res = Device.screenResolution();
   const W = Math.round(res.width), H = Math.round(res.height);
+  const store = runStore();
   let b64;
-  try {
-    b64 = await build(W, H);
-  } catch (err) {
-    console.error(err);
-    const img = errorImage(String((err && err.message) || err), W, H);
-    b64 = Data.fromPNG(img).toBase64String();
+  const active = store.active();
+  const previous = store.cached();
+  const age = previous && Date.now() - previous.at;
+  // Dentro de la app se puede probar de nuevo sin esperar el minuto. Una
+  // corrida que sigue activa se respeta tambien ahi para no sumar otro WebView.
+  if (active || (previous && age >= 0 && age < COOLDOWN_MS && !config.runsInApp)) {
+    console.log(active ? "Ya hay una actualizacion en curso" : "Se reutiliza el fondo del ultimo minuto");
+    b64 = previous ? previous.b64 : Data.fromPNG(errorImage("Ya hay una actualizacion en curso. Espera dos minutos y ejecuta una sola vez.", W, H)).toBase64String();
+    Script.setShortcutOutput(b64);
+    Script.complete();
+    return;
   }
-  // Atajos no acepta una imagen como salida de Scriptable: va como texto
-  // base64 y el Atajo la decodifica antes de ponerla de fondo.
-  Script.setShortcutOutput(b64);
-  // Solo dentro de la app hace falta una imagen nativa para la vista previa.
-  if (config.runsInApp) await QuickLook.present(Image.fromData(Data.fromBase64String(b64)), true);
+  store.begin();
+  let result = "ok";
+  try {
+    try {
+      b64 = await build(W, H, store.phase);
+      store.save(b64);
+    } catch (err) {
+      result = "error";
+      store.phase("Fondo de error", result);
+      console.error(err);
+      const img = errorImage(String((err && err.message) || err), W, H);
+      b64 = Data.fromPNG(img).toBase64String();
+    }
+    // Se registra ANTES de cada puente nativo: si iOS corta el proceso, la
+    // ultima etapa queda en disco aunque el catch no llegue a ejecutarse.
+    store.phase("Entrega a Atajos", result);
+    Script.setShortcutOutput(b64);
+    if (config.runsInApp) {
+      store.phase("Vista previa en Scriptable", result);
+      await QuickLook.present(Image.fromData(Data.fromBase64String(b64)), true);
+    }
+    store.phase("Salida entregada", result);
+  } finally {
+    store.release();
+  }
   Script.complete();
 }
 
-async function build(W, H) {
+async function build(W, H, phase) {
   const now = new Date();
   let events = null;
   let note = "";
   let googleCals = null;
   if (CONFIG.googleUrl) {
+    phase("Consulta a Google");
     try {
       const g = await loadFromGoogle();
       events = g.events;
@@ -463,10 +555,12 @@ async function build(W, H) {
       console.log("Google: " + events.length + " eventos de " + [...googleCals].join(", "));
     } catch (err) { console.error(err); note = " · sin Google"; }
   }
+  phase("Calendarios del iPhone");
   const phone = await loadFromIPhone(now);
   console.log("iPhone: " + phone.length + " eventos");
   let tasks = [];
   if (CONFIG.todoistToken) {
+    phase("Consulta a Todoist");
     try {
       tasks = await loadFromTodoist(now);
       console.log("Todoist: " + tasks.length + " tareas");
@@ -507,6 +601,7 @@ async function build(W, H) {
     opts: CONFIG,
     footer: CONFIG.showUpdated ? `act. ${two(now.getHours())}:${two(now.getMinutes())}${note}` : "",
   };
+  phase("Dibujo en WebView");
   const b64 = await renderImage(payload, W, H);
   console.log("Dibujo listo: " + W + "x" + H);
   return b64;

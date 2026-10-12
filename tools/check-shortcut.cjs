@@ -8,14 +8,23 @@ const vm = require("node:vm");
 const root = path.join(__dirname, "..");
 const source = fs.readFileSync(path.join(root, "LockScreenCal.js"), "utf8");
 const loader = fs.readFileSync(path.join(root, "loader.js"), "utf8");
+const diagnostic = fs.readFileSync(path.join(__dirname, "diagnostico.js"), "utf8");
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
 
-async function check({ inApp = false, renderFails = false, invalidOutput = false, useLoader = false, offline = false } = {}) {
+const epoch = Date.now();
+async function check({ inApp = false, renderFails = false, invalidOutput = false, useLoader = false, offline = false,
+  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false } = {}) {
   const calls = [];
   let output;
   let errorText = "";
-  let cached = source;
+  let renders = 0;
+  files.set("/cache/LockScreenCal.js", source);
+  class Clock extends Date {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  }
   const context = vm.createContext({
+    Date: Clock, OVERRIDES: overrides,
     console: { log() {}, error() {} },
     config: { runsInApp: inApp },
     Device: { screenResolution: () => ({ width: 1179, height: 2556 }) },
@@ -23,6 +32,8 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     WebView: class {
       async loadHTML() {}
       async evaluateJavaScript(js) {
+        renders++;
+        if (beforeRender) await beforeRender();
         assert.match(js, /c.width = 1179; c.height = 2556;/);
         if (renderFails) throw new Error("Fallo de dibujo simulado");
         return invalidOutput ? null : png;
@@ -56,8 +67,9 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     Font: { boldSystemFont() {} },
     FileManager: { local: () => ({
       joinPath: (a, b) => a + "/" + b, libraryDirectory: () => "/cache",
-      writeString: (_, text) => { cached = text; },
-      readString: () => cached, fileExists: () => true,
+      writeString: (name, text) => { if (storageFails) throw new Error("Disco no disponible"); files.set(name, text); },
+      readString: name => files.get(name), fileExists: name => files.has(name),
+      remove: name => { files.delete(name); },
     }) },
     Request: class {
       response = { statusCode: 200 };
@@ -67,8 +79,9 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
   await vm.runInContext("(async () => {\n" + (useLoader ? loader : source) + "\n})()", context);
   assert.equal(output, png, "Atajos debe recibir el base64 del PNG");
   assert.equal(calls.at(-1), "complete");
-  if (renderFails || invalidOutput) {
-    assert.match(errorText, renderFails ? /Fallo de dibujo simulado/ : /PNG valido/);
+  assert.equal(renders, expectRender ? 1 : 0, "Una corrida repetida no debe crear otro dibujo");
+  if (renderFails || invalidOutput || busyWithoutCache) {
+    assert.match(errorText, busyWithoutCache ? /actualizacion en curso/ : renderFails ? /Fallo de dibujo simulado/ : /PNG valido/);
     assert.deepEqual(calls, ["encode", "output", "complete"]);
   } else if (inApp) {
     assert.deepEqual(calls, ["output", "decode", "preview", "complete"]);
@@ -76,6 +89,23 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     assert.equal(errorText, "", "Una corrida normal no debe entregar el fondo de error");
     assert.deepEqual(calls, ["output", "complete"]);
   }
+  return files;
+}
+
+async function readDiagnostic(files) {
+  const before = new Map(files);
+  let text;
+  await vm.runInNewContext("(async () => {\n" + diagnostic + "\n})()", {
+    console: { log() {} },
+    FileManager: { local: () => ({
+      libraryDirectory: () => "/cache", joinPath: (a, b) => a + "/" + b,
+      fileExists: name => files.has(name), readString: name => files.get(name),
+    }) },
+    QuickLook: { present: async value => { text = value; } },
+    Script: { complete() {} },
+  });
+  assert.deepEqual(files, before, "Consultar el diagnostico no debe modificar el registro del corte");
+  return text;
 }
 
 (async () => {
@@ -85,5 +115,38 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
   await check({ invalidOutput: true });
   await check({ useLoader: true });
   await check({ useLoader: true, offline: true });
-  console.log("OK: salida directa a Atajos, vista en app, error y cargador con/sin internet");
+  const files = await check();
+  await check({ files, now: epoch + 1000, expectRender: false });
+  await check({ files, now: epoch + 60000 });
+  await check({ files, now: epoch + 60001, inApp: true });
+  await check({ files, now: epoch + 60002, overrides: { onlyCalendars: ["Ejemplo"] } });
+
+  // Con la primera corrida pausada en el WebView, la segunda entrega el fondo
+  // anterior. No pisa la etapa que necesitamos leer si iOS corta la primera.
+  let reached, resume;
+  const reachedRender = new Promise(resolve => { reached = resolve; });
+  const hold = new Promise(resolve => { resume = resolve; });
+  const activeFiles = await check();
+  const pending = check({ files: activeFiles, now: epoch + 60000, beforeRender: async () => { reached(); await hold; } });
+  await reachedRender;
+  await check({ files: activeFiles, now: epoch + 60001, expectRender: false });
+  assert.equal(JSON.parse(activeFiles.get("/cache/LockScreenCal-run.json")).phase, "Dibujo en WebView");
+  assert.match(await readDiagnostic(activeFiles), /Ultima etapa: Dibujo en WebView/);
+  resume();
+  await pending;
+  assert.equal(activeFiles.has("/cache/LockScreenCal-active.json"), false);
+
+  // Una marca dejada por un proceso terminado no bloquea el calendario para
+  // siempre; tampoco un archivo roto ni un fallo de escritura local.
+  activeFiles.set("/cache/LockScreenCal-active.json", JSON.stringify({ id: "interrumpida", startedAt: epoch }));
+  await check({ files: activeFiles, now: epoch + 120000 });
+  activeFiles.set("/cache/LockScreenCal-output.txt", "archivo roto");
+  await check({ files: activeFiles, now: epoch + 120001 });
+  await check({ storageFails: true });
+  const coldFiles = new Map([["/cache/LockScreenCal-active.json", JSON.stringify({ id: "primera", startedAt: epoch })]]);
+  await check({ files: coldFiles, expectRender: false, busyWithoutCache: true });
+  assert.equal(coldFiles.has("/cache/LockScreenCal-output.txt"), false, "El aviso no debe guardarse como fondo bueno");
+  assert.match(await readDiagnostic(new Map()), /No hay registro/);
+  assert.match(await readDiagnostic(new Map([["/cache/LockScreenCal-run.json", "roto"]])), /No se pudo leer/);
+  console.log("OK: salida a Atajos, app, errores, cargador, repeticion, solapamiento y recuperacion de marcas vencidas");
 })().catch(err => { console.error(err); process.exitCode = 1; });

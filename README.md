@@ -77,6 +77,12 @@ Cada acción se agrega escribiendo en la barra **Buscar acciones**:
 Arriba a la derecha del calendario dice `act. HH:MM`: la hora de la última
 actualización.
 
+Desde v0.13, si se ejecuta de nuevo antes de un minuto, reutiliza el último fondo
+generado con los mismos ajustes. Si hay una actualización en curso, también usa
+ese fondo para evitar repetir consultas y dibujos. Si todavía no se generó uno,
+entrega un aviso para esperar dos minutos y probar una sola vez. La marca de
+ejecución activa vence a los dos minutos si iOS interrumpe el proceso.
+
 ### 4. Que se actualice solo
 
 iOS no deja compartir automatizaciones: cada uno las arma una vez. En **Atajos** →
@@ -177,7 +183,7 @@ Si en el paso 5 no aparece "Cualquier usuario", tu cuenta es de una empresa
 |---|---|
 | El lock screen muestra otro fondo | El Atajo pinta el fondo elegido en la acción, no el activo. Mantené apretado el lock screen y elegí ese |
 | Aparece un cartel con ✓ y "Listo" cada vez que corre | Apagá **"Mostrar al ejecutar"** en la acción "Run with Parameter" (debajo de "Texts" y "URLs") |
-| "Script completed without presenting UI… or outputting a value" | Scriptable terminó sin entregar la imagen; el mensaje no dice la causa. v0.12 reduce la memoria usada al entregarla. Corré de nuevo con internet para bajar la actualización. Si sigue, mandá una captura al que lo mantiene |
+| "Script completed without presenting UI… or outputting a value" | Scriptable terminó sin entregar la imagen; el mensaje no dice la causa. v0.13 reduce las corridas repetidas y guarda la última etapa. Esperá dos minutos y ejecutá una sola vez con internet. Si sigue, consultá el diagnóstico de abajo |
 | El fondo sale negro con un error en rojo | Es el error real, escrito para poder leerlo: mandale una captura al que lo mantiene |
 | Arriba dice `sin Google` o `sin Todoist` | No pudo conectarse. Revisá la URL o el token en `MI_CONFIG`. El resto del fondo sale igual |
 | Faltan eventos | Revisá que el calendario esté en el iPhone (app Calendario → Calendarios) y que su nombre esté en `onlyCalendars` |
@@ -185,6 +191,21 @@ Si en el paso 5 no aparece "Cualquier usuario", tu cuenta es de una empresa
 | Una tarea sale dos veces | Revisá que el evento de Akiflow y la tarea tengan el mismo nombre |
 | El reloj o los widgets tapan la lista | Subí `topPercent` (ej. 36) |
 | Cambié algo y no se ve | GitHub puede tardar unos 5 minutos en entregar la versión nueva |
+
+### Consultar dónde se cortó
+
+Después del error, sin volver a ejecutar el Atajo:
+
+1. Copiá el código de [`tools/diagnostico.js`](tools/diagnostico.js).
+2. Abrí Scriptable, creá un script nuevo y pegalo.
+3. Ejecutalo y mandá una captura del texto que muestra al que lo mantiene.
+
+El diagnóstico solo lee el registro local: muestra versión, fecha, última etapa y
+tiempo hasta esa etapa. No incluye tokens, URLs ni eventos. No vuelve a correr el
+calendario ni reemplaza el registro. Si no hay registro, puede estar usando una
+versión anterior a v0.13, haber fallado antes de iniciar el script o no haber
+podido guardar el archivo. No identifica por sí solo si el corte fue por memoria
+o por tiempo.
 
 ---
 
@@ -212,6 +233,7 @@ Si en el paso 5 no aparece "Cualquier usuario", tu cuenta es de una empresa
 | `loader.js` | Lo que va adentro del Atajo: baja `LockScreenCal.js` de este repo y lo corre con tu `MI_CONFIG`. Sin internet, usa la última copia |
 | `google/Code.gs` | El puente opcional con Google Calendar |
 | `tools/preview.cjs` | Vista previa en la compu, con datos de ejemplo |
+| `tools/diagnostico.js` | Se ejecuta en Scriptable para leer la última etapa después de un corte |
 | `docs/Bitacora.md` | Estado del proyecto, decisiones tomadas y problemas conocidos |
 | `CLAUDE.md` | Instrucciones para agentes de IA que trabajen en el repo |
 

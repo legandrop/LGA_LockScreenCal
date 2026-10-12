@@ -2,24 +2,34 @@
 
 Este archivo es el **estado actual**, no un historial: se reescribe cuando algo
 cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
-Última actualización: 10/10/2026 (versión del script: ver `VERSION` en
+Última actualización: 12/10/2026 (versión del script: ver `VERSION` en
 `LockScreenCal.js`).
 
 ## Resumen
 
-Funcionaba en el iPhone de Lega con Google, Todoist y las automatizaciones. El
-10/10 reporto otra vez el corte de Scriptable sin salida desde el editor de Atajos.
-La captura no identifica la causa. **v0.12** elimina la conversion del PNG base64
-a imagen nativa y de vuelta a PNG al entregarlo a Atajos, para reducir la memoria
-de la extension. Sintaxis, entrega simulada y dibujo en Chromium verificados;
-**falta confirmar la nueva version en el iPhone**.
+El 12/10 Lega volvió a reportar el corte de Scriptable sin salida. Al principio
+pasaba a veces al entrar y salir repetidamente de WhatsApp (el Atajo se dispara al
+cerrarla). Parecía haber dejado de funcionar desde el día anterior, pero durante
+la conversación comprobó que alguna corrida de hoy sí actualizó el fondo. El
+problema sigue siendo intermitente; **no hay diagnóstico confirmado de la causa**.
+
+**v0.13** reutiliza el último fondo durante un minuto con los mismos ajustes y
+consulta una marca local antes de iniciar otro dibujo. La marca vence a los dos
+minutos si iOS termina el proceso. Se registra la última etapa, versión y tiempo
+en disco; `tools/diagnostico.js` permite leerlos desde Scriptable sin volver a
+ejecutar el calendario. Conserva la entrega directa en base64 de v0.12; el fondo
+de error ahora se genera a 390 px de ancho para reducir memoria también ahí.
+Sintaxis, salida simulada, repetición, solapamiento y marcas vencidas verificados;
+vista previa en Chromium revisada. **Falta probar v0.13 en el iPhone**.
 
 ## Pendiente
 
-0. **Volver a ejecutar el Atajo con v0.12.** El cargador existente la baja solo.
-   Si vuelve el corte sin salida, correr el mismo cargador dentro de la app
-   Scriptable y revisar en que etapa terminan los logs; memoria y tiempo de
-   ejecucion siguen siendo hipotesis, no un diagnostico confirmado por la captura.
+0. **Probar v0.13.** El cargador existente la baja solo. Esperar la caché de GitHub
+   y ejecutar una sola vez. Después probar los disparadores seguidos de WhatsApp.
+   Si vuelve el corte, ejecutar `tools/diagnostico.js` dentro de Scriptable y leer
+   la última etapa sin reejecutar antes el calendario. Memoria, tiempo y corridas
+   superpuestas siguen siendo hipótesis. Si no se registra la nueva versión,
+   probar el cargador existente dentro de Scriptable y revisar sus logs.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
@@ -125,7 +135,13 @@ Regla del repo: no inventar nombres de botones (ver `CLAUDE.md`). Estos están v
   sintaxis rompe el fondo de todos (ver reglas en `CLAUDE.md`).
 - `node tools/check-shortcut.cjs` verifica con APIs simuladas la salida base64 sin
   decodificacion nativa en Atajos, la vista en la app, el fondo de error y el
-  cargador con/sin internet. No reproduce los limites de memoria/tiempo de iOS.
+  cargador con/sin internet; también la reutilización en un minuto, el solapamiento
+  y la recuperación de marcas vencidas. No reproduce los límites de memoria/tiempo
+  de iOS ni demuestra exclusión atómica entre procesos reales.
+- La protección de v0.13 empieza en el script descargado: el cargador ya instalado
+  todavía descarga el código en cada corrida. La marca local reduce el trabajo
+  duplicado, pero no es un bloqueo atómico entre procesos. Si cambia `MI_CONFIG`
+  o la versión, no se reutiliza el fondo de los ajustes anteriores.
 
 ## Decisiones tomadas (no re-litigar)
 
