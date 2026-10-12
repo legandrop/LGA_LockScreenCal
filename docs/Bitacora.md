@@ -7,8 +7,10 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 
 ## Resumen
 
-**El Atajo sigue siendo intermitente; no se ha confirmado una solucion en iOS.**
-Los registros recuperados el 12/10 muestran una consulta a Google de 45 min 31 s
+**La ejecucion SILENCIOSA aun no esta validada.** Lega confirmo una corrida
+sin abrir Scriptable, pero despues aclaro que apagar Mostrar al ejecutar
+vuelve a fallar. No dar esa prueba anterior por solucion completa.
+Los registros del Atajo inline anterior recuperados el 12/10 muestran una consulta a Google de 45 min 31 s
 en v0.16 y otra de 61 min 4 s en v0.18. Esta ultima tambien tuvo un timeout de
 Todoist de 87.7 s; luego dibujo el PNG y preparo el retorno a las 19:21 locales,
 62 min 37 s despues de empezar. Atajos ya habia mostrado el error. Otra corrida
@@ -28,7 +30,8 @@ usan el mismo mecanismo con 2 s. Las respuestas tardias no modifican el resultad
 **La automatizacion debe funcionar sin abrir una app.** Lega rechazo como
 solucion permanente la ejecucion en primer plano al probar el Atajo guardado.
 Run In App fue una prueba diagnostica; no darlo por solucion del objetivo.
-Ya instalo el cargador v0.15 y activo `logRemote`. No volver a pedir capturas o
+Instalo inicialmente el cargador v0.15 y activo `logRemote`; ahora usa el script
+guardado preparado automaticamente por v0.20. No volver a pedir capturas o
 exports como procedimiento habitual. El bloque `google/Logs.gs` no tiene despliegue
 real confirmado y los envios observados fallaban; no depender de que Lega edite
 Apps Script para habilitar registros.
@@ -48,7 +51,7 @@ SHA-256, limpieza de temporizadores, reintentos, revisiones, privacidad y retenc
 verificados. Vista previa de Chromium revisada. El receptor se probo con SQLite
 real, se construyo y se desplego correctamente.
 
-**v0.20 prepara una alternativa dentro de la app, sin pegar codigo.** Antes de
+**v0.20 prepara un script guardado, sin pegar codigo.** Antes de
 consultar calendarios guarda un cargador generico `LGA_LockScreenCal_App.js` en
 los documentos locales y de iCloud de Scriptable. Solo se habilita con el receptor
 administrado de Lega. Guarda los ajustes en Keychain; el archivo no contiene
@@ -59,9 +62,9 @@ PNG y llama al setter nativo exterior y a `Script.complete()` como ultima accion
 Una ejecucion manual muestra la vista previa; el parametro `atajo` la omite.
 Todoist tambien tiene un plazo logico de 15 s, sujeto a la misma suspension.
 Esto NO convierte por codigo una ejecucion en segundo plano en primer plano.
-La alternativa abre Scriptable. La ejecucion manual en el telefono ya funciono;
-su llamada desde Atajos tambien completo una corrida en primer plano. Falta
-probar la accion guardada en segundo plano y la estabilidad de la automatizacion.
+Run In App activado abre Scriptable y solo se uso para diagnostico. Apagado,
+la accion guardada funciono con la confirmacion visible; apagar tambien Mostrar
+al ejecutar volvio a fallar. Falta comprobar la variante silenciosa.
 
 Se probaron instalacion sin secretos en archivos, proteccion de archivos
 personales, cache offline, descargas invalidas, salida nativa despues del await,
@@ -83,19 +86,62 @@ La llamada del Atajo al script guardado a las 20:22:51 (`mv5vns7o-c3f3imuqgjs`)
 respondio Google en 7.7 s, Todoist en 0.8 s y preparo el retorno en 13.5 s.
 No registro app_preview. Lega dijo que cree que funciono, pero abrio Scriptable
 y eso es inaceptable para su automatizacion frecuente. El registro confirma
-preparacion de salida, no aplicacion final del fondo. La ejecucion de la accion
-GUARDADA con Run In App apagado aun no se ha probado; la accion INLINE anterior
-si fallo en ese contexto. Son rutas de entrega distintas (setter nativo y complete
+preparacion de salida, no aplicacion final del fondo. Son rutas de entrega
+distintas (setter nativo y complete
 exteriores en la guardada, return en la inline), sin prueba de que eso por si solo
 resuelva los tiempos o limites de la extension.
 
+**Confirmacion posterior de Lega: "funciono bien sin abrir la app".** El script
+tenia Always Run in App apagado en sus ajustes; tambien se apago Run In App en
+la accion de Atajos. Los registros recientes muestran dos retornos reutilizados
+a las 20:36:36 y 20:36:46 en 1.3 y 1.2 s. Un intento completo a las 20:35:50
+tuvo timeout de Google tras 14.2 s, uso calendarios del iPhone y Todoist y preparo
+el PNG en 19.7 s. No confundir la prueba de reutilizacion con la validacion de
+cada consulta en segundo plano. El modo de ejecucion no se registra como campo
+explicito; la confirmacion de ausencia de apertura de app viene del usuario.
+
+**Nuevo fallo v0.20 con Mostrar al ejecutar apagado:** a las 20:37:15,
+`mv5w6b8b-4n79nc83xld` espero Google 29.0 s y preparo el retorno en 33.4 s.
+Las capturas confirman Run In App y Mostrar al ejecutar apagados, y Output
+conectado a la accion guardada. Lega no acepta el cartel Listo ni abrir la app.
+No se conoce el mecanismo interno de iOS/Scriptable que depende de Mostrar.
+
+**v0.21 cambia la espera por datos preparados en el servidor.** Lega eligio
+explicitamente preparar Google y Todoist en el servicio privado mediante la
+pregunta de preferencias. Se desplego el servidor con una copia por fuente en
+D1 `calendar_cache`, solo campos necesarios, protegida con una clave de lectura
+distinta de la clave de logs. Credenciales en secretos de Sites; ninguna en
+fuente, bundles ni registros. Los calendarios del iPhone permanecen locales.
+GET /api/calendar entrega la copia de inmediato e inicia refresh en waitUntil
+si pasaron 60 s; no hay cron. Tras inactividad o un cambio reciente puede hacer
+falta la siguiente corrida para ver los datos nuevos. Copias de mas de una hora
+no se entregan; si falla la fuente se conserva la ultima buena hasta vencer.
+
+El cargador v0.21 reutiliza el codigo por cinco minutos, espera como maximo
+1 s por refrescarlo si hay copia, omite envios de logs antes de preparar el PNG
+y llama al setter nativo ANTES del envio final. El programa pide el snapshot
+con plazo de 1.5 s y puede usar copia local reciente; no espera Google ni Todoist
+directamente en este modo. Para otros usuarios se conserva la via anterior.
+Actualiza automaticamente el archivo guardado; no requiere pegar otro cargador.
+
+Servidor de datos desplegado y calentado con ambas fuentes reales. GET sin clave
+401; con clave 200 en 152, 254 y 322 ms. Prueba de nube del cargador y programa
+reales, dibujo/iPhone simulados: preparo PNG en 322 ms, ambas fuentes OK, salida
+y complete nativos invocados. No es validacion de iOS. SQLite verifica lectura
+sin espera, leases, fallo que preserva copia, privacidad y expiracion; pruebas
+del cliente verifican endpoint, clave separada, fallback y ausencia de esperas
+de logs antes del dibujo. Sintaxis y vista previa revisadas.
+
 ## Pendiente
 
-0. **Probar la accion guardada en segundo plano.** Mantener Run del script
+0. **Validar v0.21 silenciosa una vez en el telefono.** Mantener Run del script
    `LGA_LockScreenCal_App`, parametro conectado a Texto `atajo`, y Output de ese
-   Run conectado a Decodificar. Cambiar solo Run In App a apagado y ejecutar
-   una vez; leer D1. No prometer estabilidad por una sola corrida ni regresar a
-   la accion inline. No pedir codigo ni exports. Si falla, diagnosticar esa
+   Run conectado a Decodificar. Run In App, Always Run in App y Mostrar al
+   ejecutar apagados. La fuente v0.21
+   llega sola y prepara el cargador nuevo en disco. Consultar D1 despues de una
+   corrida; no pedir codigo, tokens ni exports. No prometer
+   estabilidad por una sola corrida ni regresar a la accion inline.
+   Si falla, diagnosticar esa
    ruta en extension; abrir Scriptable permanentemente no satisface el objetivo.
    La captura de las 20:19 confirma Run with Texto; su Output estaba rojo y se
    indico reconectarlo antes de la prueba. Parameter abre ARCHIVOS al tocarlo
@@ -117,13 +163,15 @@ resuelva los tiempos o limites de la extension.
 
 ## Cómo lo tiene armado Lega
 
-- **Atajo:** se llama **`LGA_ScreenLockCal`**. Tres acciones (ver README, "A mano"),
-  con "Mostrar al ejecutar" apagado en la de Scriptable.
+- **Atajo:** se llama **`LGA_ScreenLockCal`**. Cuatro acciones: Texto con `atajo`,
+  Run del script guardado `LGA_LockScreenCal_App` con esa variable como Parameter,
+  Decodificar el Output de Run con Base64 y Establecer el fondo. Run In App y
+  Mostrar al ejecutar apagados. Always Run in App apagado en Scriptable.
 - **Fondo:** pisa el tercer lock screen de su galería, el negro que había creado Ink.
-- **`MI_CONFIG`:** `googleUrl` (su puente), `todoistToken`, `onlyCalendars: ["Wanka",
-  "Feriados Argentina", "Cumples", "Cumpleaños"]` y sus palabras clave. **La URL, el
-  token del puente y el de Todoist no van en este repo** (es público): están solo en
-  su Atajo.
+- **Ajustes privados:** originalmente venian de `MI_CONFIG` en el Atajo inline.
+  Ahora estan en Keychain del dispositivo, clave `LGA_LockScreenCal.managed.config.v1`.
+  Incluyen puente de Google, token de Todoist, filtros, colores y receptor.
+  **No van en este repo publico ni en el archivo generico del script guardado.**
 - **Palabras clave:** los códigos de sus proyectos con sus colores de Google
   Calendar. Están en su repo privado `legandrop/LGA_Assistant`,
   `context/contexto.md`, sección "Colores de proyecto: Todoist y Google Calendar"; el
@@ -147,6 +195,9 @@ Regla del repo: no inventar nombres de botones (ver `CLAUDE.md`). Estos están v
 - Scriptable, código en línea: se ve **"Run with [Parameter] ›"** con el ícono `{}`.
   La **›** despliega el código, después **"Texts"**, **"URLs"** y el interruptor
   **"Mostrar al ejecutar"**. Los diálogos de error la llaman "Run Inline Script".
+- Script guardado: **"Run [LGA_LockScreenCal_App] with [Texto] ›"**. La flecha
+  despliega **"Run In App"** y **"Mostrar al ejecutar"**. El ajuste propio del
+  script se llama **"Always Run in App"**; es independiente del de Atajos.
 - Base64: **"Decodificar [Output] con base64"**.
 - Fondo: **"Establecer foto como fondo de pantalla"** (ícono azul de flor). Ya
   armada: **"Establecer [Codificado con Base64] como [3 fondo de pantalla] en

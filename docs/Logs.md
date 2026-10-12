@@ -58,7 +58,7 @@ Sin `logCollector` se conserva el envio v0.15 al puente propio. Esa via requiere
 el addon [google/Logs.gs](../google/Logs.gs) desplegado junto al puente y conserva
 50 corridas remotas. No forma parte de la nueva instalacion de Lega.
 
-## Alternativa en la app Scriptable
+## Script guardado y ejecucion en segundo plano
 
 Desde v0.20 el programa prepara automaticamente `LGA_LockScreenCal_App` cuando
 se usa el receptor administrado. El archivo guardado contiene un cargador
@@ -73,12 +73,16 @@ de red. Una ejecucion manual desde Scriptable muestra el PNG; con parametro
 invoca despues de esperar todo el programa y `Script.complete()` es la ultima
 accion. Ejecutarlo dentro de la app requiere abrir Scriptable; el script no
 puede cambiar por si solo el modo de ejecucion de la accion de Atajos.
-La prueba manual en el iPhone del 12/10 mostro la imagen y envio sus registros;
-falta comprobar la entrega desde Atajos y la estabilidad de las automatizaciones.
+La prueba manual en el iPhone del 12/10 mostro la imagen y envio sus registros.
+Lega luego confirmo que el Atajo funciono sin abrir la app, pero apagar tambien
+Mostrar al ejecutar volvio a fallar. La ejecucion silenciosa sigue pendiente.
 
 Para conectar la alternativa, buscar Scriptable en Atajos y elegir la accion
 para ejecutar un script guardado, `Run Script`. Seleccionar `LGA_LockScreenCal_App`,
-parametro `atajo`, y habilitar `Run in App` en sus opciones. Ambos nombres estan
+parametro `atajo`, y dejar `Run In App` APAGADO para funcionar sin abrir la app.
+`Always Run in App` en los ajustes del script tambien debe estar apagado.
+El modo activado se uso solo para diagnosticar la ejecucion en primer plano.
+Los parametros de entrada estan
 documentados en [Scriptable](https://docs.scriptable.app/args/); su ubicacion puede
 variar en la interfaz. Esa accion reemplaza la inline; `Decodificar` debe tomar
 el `Output` de la nueva accion. La accion de establecer fondo conserva sus ajustes.
@@ -88,7 +92,32 @@ Para pasar texto estatico se agrega una accion Texto con `atajo` antes de Run
 y se conecta su salida como variable. No se busca esa variable en Archivos.
 [Apple documenta](https://support.apple.com/es-es/guide/shortcuts/apdd02c2780c/ios)
 que algunos parametros requieren mantener pulsado para sustituirlos por variables;
-ese gesto todavia necesita confirmacion en la interfaz de este telefono.
+ese gesto ya se confirmo en este telefono y permitio conectar la variable Texto.
+
+## Datos preparados fuera del telefono (v0.21)
+
+Lega eligio esta opcion para evitar las consultas lentas en la corrida silenciosa.
+El servicio conserva una copia privada por fuente en `calendar_cache`. Google y
+Todoist se consultan con secretos configurados en Sites, sin subir tokens a fuente.
+Se conservan titulos, fechas y campos necesarios para filtrar/colorear, sin
+descripciones, correos ni historial de snapshots. Los calendarios nativos siguen
+en el dispositivo. Esto es distinto del historial tecnico `phone_runs`, que
+mantiene la whitelist original y no contiene eventos.
+
+GET `/api/calendar` exige una clave derivada con el prefijo
+`LockScreenCal.calendar.v1:`; la clave de logs no concede acceso a esos datos.
+La respuesta no espera a Google/Todoist. Si pasaron 60 s inicia actualizacion
+en el servidor con waitUntil; la siguiente corrida recibe el resultado. No hay
+actualizacion programada mientras no se solicita el endpoint. Se rechazan copias
+con mas de una hora y se conserva la ultima buena ante un fallo. Tras inactividad
+la primera corrida puede usar los calendarios del iPhone mientras se prepara la
+copia nueva. El telefono guarda tambien una copia local reciente para fallos de red.
+
+El modo administrado omite envios de logs antes de preparar el PNG; el cargador
+los envia despues del setter nativo. Se recuperan pendientes en la proxima corrida.
+El codigo se reutiliza por cinco minutos y una descarga lenta usa la copia valida.
+Los demas usuarios, sin el receptor administrado, mantienen el funcionamiento
+anterior; `managedData: false` permite desactivar esta via.
 
 ## Alcance del diagnostico
 

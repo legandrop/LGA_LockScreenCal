@@ -22,6 +22,9 @@ const CONFIG = {
   logRemote: false,
   // Receptor administrado independiente del puente de calendario. Vacio: Google.
   logCollector: "",
+  // El servicio administrado puede preparar Google/Todoist fuera del telefono.
+  // Solo se activa para su receptor autenticado; otros usuarios siguen igual.
+  managedData: true,
 
   // Tareas de Todoist con fecha (opcional). El token se saca de Todoist:
   // Configuracion -> Integraciones -> Desarrollador. Da acceso total a la cuenta:
@@ -73,7 +76,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.20";
+const VERSION = "0.21";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -265,7 +268,7 @@ async function managedAppRunner() {
   const settings = JSON.parse(Keychain.get(settingsKey));
   const fm = FileManager.local();
   const cache = fm.joinPath(fm.libraryDirectory(), "LockScreenCal.js");
-  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.20", startedAt: Date.now(), events: [], revision: 0 };
+  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.21", startedAt: Date.now(), events: [], revision: 0 };
   const context = { record, skipPreview: true, fromShortcut: !!config.runsWithSiri || args.shortcutParameter === "atajo" };
   let source, output;
   const attachTrace = code => {
@@ -278,18 +281,25 @@ async function managedAppRunner() {
   try { if (fm.fileExists(cache)) { source = fm.readString(cache); attachTrace(source); } } catch (_) {}
   context.trace?.event("loader_start");
   context.trace?.event("download_start");
-  await context.trace?.flush();
   try {
-    const request = new Request("https://raw.githubusercontent.com/legandrop/LGA_LockScreenCal/main/LockScreenCal.js?app=" + Date.now());
-    request.timeoutInterval = 15;
-    const downloaded = await request.loadString();
-    if (request.response?.statusCode !== 200 || !downloaded.includes("drawCalendar")) throw new Error("HTTP " + request.response?.statusCode);
-    // Se compila antes de reemplazar la ultima copia buena.
-    new (Object.getPrototypeOf(async function () {}).constructor)("OVERRIDES", "Script", "RUN_CONTEXT", downloaded);
-    source = downloaded;
-    try { fm.writeString(cache, source); } catch (_) {}
-    attachTrace(source);
-    context.trace?.event("download_ok");
+    const stamp = fm.joinPath(fm.libraryDirectory(), "LockScreenCal-code-at.txt");
+    let age = Infinity;
+    try { age = Date.now() - Number(fm.readString(stamp)); } catch (_) {}
+    if (source && age >= 0 && age < 300000) context.trace?.event("download_cache");
+    else {
+      const request = new Request("https://raw.githubusercontent.com/legandrop/LGA_LockScreenCal/main/LockScreenCal.js?app=" + Date.now());
+      request.timeoutInterval = source ? 1 : 3;
+      let timer;
+      // En segundo plano no se espera una descarga lenta si hay copia valida.
+      const limit = new Promise((_, reject) => { timer = Timer.schedule(source ? 1000 : 3000, false, () => reject(new Error("timeout"))); });
+      const downloaded = await Promise.race([request.loadString(), limit]).finally(() => timer.invalidate());
+      if (request.response?.statusCode !== 200 || !downloaded.includes("drawCalendar")) throw new Error("HTTP " + request.response?.statusCode);
+      new (Object.getPrototypeOf(async function () {}).constructor)("OVERRIDES", "Script", "RUN_CONTEXT", downloaded);
+      source = downloaded;
+      try { fm.writeString(cache, source); fm.writeString(stamp, String(Date.now())); } catch (_) {}
+      attachTrace(source);
+      context.trace?.event("download_ok");
+    }
   } catch (error) {
     context.trace?.error("download_error", error);
     if (!source) { await context.trace?.flush(); throw error; }
@@ -303,10 +313,11 @@ async function managedAppRunner() {
     }, context);
     if (typeof output !== "string" || !output.startsWith("iVBORw0KGgo")) throw new Error("El script no preparo un PNG valido para Atajos");
     context.trace?.event("loader_return_prepared", { base64Chars: output.length });
-    await context.trace?.flush();
     // La llamada nativa se hace en el cargador exterior, despues de esperar
     // todo el programa. No se entrega una promesa como salida de la accion.
     Script.setShortcutOutput(output);
+    // Los logs se envian con la salida ya entregada. No bloquean su preparacion.
+    await context.trace?.flush();
     if (config.runsInApp && !context.fromShortcut) {
       context.trace?.event("app_preview");
       await context.trace?.flush();
@@ -654,12 +665,55 @@ async function loadFromIPhone(now) {
   }));
 }
 
-async function loadFromGoogle() {
-  const sep = CONFIG.googleUrl.includes("?") ? "&" : "?";
-  const req = new Request(CONFIG.googleUrl + sep + "days=" + ((CONFIG.startInDays || 0) + CONFIG.maxDays));
-  req.timeoutInterval = 12;
-  const json = await withDeadline(req.loadJSON(), 12000);
-  if (req.response?.statusCode !== 200) throw new Error("HTTP " + req.response?.statusCode);
+// ==== MANAGED DATA START ====
+function usesManagedData() {
+  return CONFIG.managedData !== false && CONFIG.logCollector === "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs";
+}
+async function loadManagedData() {
+  const fm = FileManager.local();
+  const path = fm.joinPath(fm.libraryDirectory(), "LockScreenCal-data.json");
+  const valid = input => {
+    if (input?.version !== 1) return null;
+    const out = { version: 1, google: null, todoist: null };
+    for (const key of ["google", "todoist"]) {
+      const source = input[key], age = Date.now() - source?.at;
+      if (Number.isFinite(age) && age >= 0 && age < 3600000 &&
+          (key === "google" ? Array.isArray(source.data?.events) : Array.isArray(source.data?.tasks) && Array.isArray(source.data?.projects) && source.data?.me?.id)) out[key] = source;
+    }
+    return out;
+  };
+  try {
+    const token = CONFIG.googleUrl.match(/[?&]token=([^&]+)/)?.[1];
+    if (!token) throw new Error("Falta token de datos");
+    const request = new Request("https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/calendar");
+    request.headers = { Authorization: "Bearer " + logKey("LockScreenCal.calendar.v1:" + decodeURIComponent(token)), "User-Agent": "LockScreenCal/" + VERSION };
+    request.timeoutInterval = 1.5;
+    const reply = await withDeadline(request.loadJSON(), 1500);
+    if (request.response?.statusCode !== 200) throw new Error("HTTP " + request.response?.statusCode);
+    const data = valid(reply);
+    if (!data) throw new Error("Respuesta inesperada de datos");
+    try { fm.writeString(path, JSON.stringify(data)); } catch (_) {}
+    return data;
+  } catch (error) {
+    // Una copia local reciente permite continuar sin red. Nunca espera las APIs.
+    try { const data = valid(JSON.parse(fm.readString(path))); if (data) return { ...data, localCache: true }; } catch (_) {}
+    const message = String(error?.message || "");
+    const reason = message.match(/^HTTP \d{3}$/)?.[0] || (/timeout/i.test(message) ? "timeout" : "Datos preparados no disponibles");
+    return { version: 1, google: null, todoist: null, reason };
+  }
+}
+// ==== MANAGED DATA END ====
+
+async function loadFromGoogle(prepared) {
+  let json;
+  if (prepared) json = prepared;
+  else {
+    const sep = CONFIG.googleUrl.includes("?") ? "&" : "?";
+    const req = new Request(CONFIG.googleUrl + sep + "days=" + ((CONFIG.startInDays || 0) + CONFIG.maxDays));
+    req.timeoutInterval = 12;
+    json = await withDeadline(req.loadJSON(), 12000);
+    if (req.response?.statusCode !== 200) throw new Error("HTTP " + req.response?.statusCode);
+  }
   if (!json || !Array.isArray(json.events)) throw new Error("Respuesta inesperada de Google");
   // Mismo filtro de calendarios que con el iPhone, para que MI_CONFIG sirva igual
   // con las dos fuentes.
@@ -711,8 +765,8 @@ function todoistDue(date) {
   return { start: new Date(y, mo, d, Number(m[4]), Number(m[5])).getTime(), timed: true };
 }
 
-async function loadFromTodoist(now) {
-  const [me, projects, tasks] = await Promise.all([
+async function loadFromTodoist(now, prepared) {
+  const [me, projects, tasks] = prepared ? [prepared.me, prepared.projects, prepared.tasks] : await Promise.all([
     todoistGet("user", false),
     todoistGet("projects", true),
     todoistGet("tasks", true),
@@ -796,7 +850,7 @@ async function main() {
   // El conteo indica cuantas ubicaciones locales quedaron listas (sin secretos).
   const appCopies = prepareManagedApp(CONFIG);
   trace.event("script_start", CONFIG.logCollector ? { count: appCopies } : {});
-  await trace.flush();
+  if (!usesManagedData()) await trace.flush();
   const res = Device.screenResolution();
   const W = Math.round(res.width), H = Math.round(res.height);
   const store = runStore(trace);
@@ -854,13 +908,19 @@ async function main() {
 
 async function build(W, H, phase, trace) {
   const now = new Date();
+  const managed = usesManagedData();
+  let prepared;
   let events = null;
   let note = "";
   let googleCals = null;
   if (CONFIG.googleUrl) {
     phase("Consulta a Google");
     try {
-      const g = await loadFromGoogle();
+      if (managed) {
+        prepared = await loadManagedData();
+        if (!prepared.google) throw new Error(prepared.reason || "Datos de Google no disponibles");
+      }
+      const g = await loadFromGoogle(managed ? prepared.google.data : null);
       events = g.events;
       googleCals = g.calendars;
       trace.event("google_ok", { count: events.length });
@@ -875,7 +935,11 @@ async function build(W, H, phase, trace) {
   if (CONFIG.todoistToken) {
     phase("Consulta a Todoist");
     try {
-      tasks = await withDeadline(loadFromTodoist(now), 15000);
+      if (managed) {
+        if (!prepared) prepared = await loadManagedData();
+        if (!prepared.todoist) throw new Error(prepared.reason || "Datos de Todoist no disponibles");
+      }
+      tasks = await withDeadline(loadFromTodoist(now, managed ? prepared.todoist.data : null), managed ? 1000 : 15000);
       trace.event("todoist_ok", { count: tasks.length });
       console.log("Todoist: " + tasks.length + " tareas");
     } catch (err) { trace.error("todoist_error", err); console.error(err); note += " · sin Todoist"; }
@@ -918,7 +982,7 @@ async function build(W, H, phase, trace) {
   phase("Dibujo en WebView");
   // Dejar un punto remoto antes de crear el WebView: un corte nativo puede
   // impedir tanto el catch como el envio final, aunque las consultas hayan pasado.
-  await trace.flush();
+  if (!managed) await trace.flush();
   const b64 = await renderImage(payload, W, H);
   trace.event("render_ok", { width: W, height: H, base64Chars: b64.length });
   console.log("Dibujo listo: " + W + "x" + H);

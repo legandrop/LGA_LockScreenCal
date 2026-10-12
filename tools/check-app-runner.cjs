@@ -8,16 +8,20 @@ const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 const fixture = { logCollector: 'https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs',
   googleUrl: 'SECRET_GOOGLE', todoistToken: 'SECRET_TODOIST', keywords: { SECRET_PROJECT: '#000' }, logRemote: false };
 const good = 'const VERSION = "0.20"; function drawCalendar() {}\nScript.setShortcutOutput(' + JSON.stringify(png) + '); Script.complete(); await Promise.resolve(); settled = true;';
-async function check({ offline = false, invalidDownload = false, malformedDownload = false, fromShortcut = true, missingOutput = false } = {}) {
-  const files = new Map(); const keys = new Map(); const calls = [];
+async function check({ offline = false, invalidDownload = false, malformedDownload = false, fromShortcut = true, missingOutput = false, freshCodeCached = false, stalledDownload = false } = {}) {
+  const files = new Map(); const keys = new Map(); const calls = []; let downloads = 0;
+  if (freshCodeCached) files.set("/lib/LockScreenCal-code-at.txt", String(Date.now()));
   files.set('/lib/LockScreenCal.js', missingOutput ? 'function drawCalendar() {}' : good);
   const manager = kind => ({ libraryDirectory: () => '/lib', documentsDirectory: () => '/' + kind + '/documents',
     joinPath: (a,b) => a + '/' + b, fileExists: p => files.has(p), readString: p => files.get(p), writeString: (p,v) => files.set(p,v) });
   const context = vm.createContext({ console, config: { runsInApp: true, runsWithSiri: false },
+    Timer: { schedule(ms,repeat,callback) { const timer = setTimeout(callback,ms); return { invalidate() { clearTimeout(timer); } }; } },
     args: { shortcutParameter: fromShortcut ? 'atajo' : null },
     Keychain: { contains: k => keys.has(k), get: k => keys.get(k), set: (k,v) => keys.set(k,v) },
     FileManager: { local: () => manager('local'), iCloud: () => manager('cloud') },
     Request: class { response = { statusCode: 200 }; async loadString() {
+      downloads++;
+      if (stalledDownload) return new Promise(() => {});
       if (offline) throw new Error('Sin internet');
       return invalidDownload ? '<html>error</html>' : malformedDownload ? 'function drawCalendar() {' : missingOutput ? 'function drawCalendar() {}' : good;
     } },
@@ -41,11 +45,13 @@ async function check({ offline = false, invalidDownload = false, malformedDownlo
   } else {
     await vm.runInContext('(async()=>{'+generated+'})()',context);
     assert.deepEqual(calls,fromShortcut?['output','complete']:['output','preview','complete']);
+    if (freshCodeCached) assert.equal(downloads,0,'El codigo reciente no debe volver a descargarse');
     if(invalidDownload||malformedDownload) assert.equal(files.get('/lib/LockScreenCal.js'),good,'Una descarga invalida no debe reemplazar la copia buena');
   }
 }
 (async()=>{
   await check(); await check({fromShortcut:false}); await check({offline:true});
+  await check({freshCodeCached:true}); await check({stalledDownload:true});
   await check({invalidDownload:true}); await check({malformedDownload:true}); await check({missingOutput:true});
   console.log('OK: preparacion privada, Keychain, archivos personales, cache, salida nativa y complete al final');
 })().catch(error=>{console.error(error);process.exitCode=1;});

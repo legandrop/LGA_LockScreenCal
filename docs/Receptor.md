@@ -11,6 +11,12 @@ Servicio construido con la habilidad Sites. Proyecto administrado por su propiet
 - Base D1: binding `DB`, tabla `phone_runs`, migracion de Drizzle aplicada al desplegar.
 - Secreto de escritura: `LOG_INGEST_KEY`, almacenado en el gestor de Sites. No
   copiarlo a GitHub, archivos de fuente, bundles, argumentos ni salidas de comandos.
+- Desde v0.21: tabla `calendar_cache` y `/api/calendar` para datos preparados,
+  con consentimiento expreso de Lega. Secretos `CALENDAR_READ_KEY`,
+  `SERVER_GOOGLE_URL`, `SERVER_TODOIST_TOKEN`; la clave de logs sigue sin lectura.
+- Fuente desplegada de datos: `ef9e7c6bad77ff72a59569c0edebb6e60eec2b6e`,
+  version 2 y revision de entorno 3, deployment
+  `appgdep_6acd71e55c14819181ed05e3569b3967`.
 
 ## Estado y acceso
 
@@ -53,8 +59,20 @@ simulado; no demuestra que el Atajo funcione en iOS.
 La prueba real v0.20 del 12/10 a las 19:44 preparo un PNG en 9.5 s y registro
 `app_preview`; Lega confirmo la imagen en Scriptable. La corrida inline de las
 19:43 tuvo timeout de Google y preparo la salida en 26.7 s, pero Atajos mostro
-error. Ambas quedaron en D1. Falta validar la accion que llama al script guardado
-dentro de la app, y la aplicacion efectiva del fondo.
+error. Ambas quedaron en D1. Posteriormente Lega confirmo que la accion guardada
+funciono sin abrir Scriptable, tras apagar Run In App en Atajos. Los retornos
+recientes de las 20:36 reutilizaron un PNG en 1.2-1.3 s. El intento completo
+anterior tuvo timeout de Google y preparo el fondo con fallback del iPhone.
+Falta observar estabilidad repetida; D1 no confirma por si solo el fondo aplicado
+ni registra explicitamente el modo de ejecucion.
+
+Lega aclaro despues que Mostrar al ejecutar apagado vuelve a fallar; aun no esta
+validada la ejecucion silenciosa. v0.21 prepara datos fuera del telefono.
+Ambas fuentes reales se calentaron con POST autenticado a /api/calendar; los GET
+reales devolvieron 200 en 152-322 ms y sin clave devolvieron 401. Un registro
+`background-probe-...` prueba la fabrica real con dibujo simulado; no es un iPhone.
+No consultar ni imprimir filas de `calendar_cache` para diagnosticar tiempos:
+contienen los datos privados. Las consultas habituales siguen en `phone_runs`.
 
 Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error
 1010, antes de entrar al Worker. Con User-Agent `LockScreenCal/0.16` llegaron al

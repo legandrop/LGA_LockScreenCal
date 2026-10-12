@@ -224,9 +224,11 @@ con los calendarios del iPhone; iOS puede suspender ese temporizador.
 
 v0.20 prepara automáticamente un script guardado, `LGA_LockScreenCal_App`, para
 quienes usan el receptor administrado. Conserva los ajustes en Keychain del
-teléfono y permite probar la ejecución abriendo Scriptable, sin volver a pegar
-código. La prueba manual en el iPhone mostró la imagen; falta validar su llamada
-desde Atajos. Ver la documentación de registros antes de cambiar las acciones.
+teléfono, sin volver a pegar código. Se confirmó una ejecución sin abrir la app,
+pero apagar también **Mostrar al ejecutar** volvió a fallar. v0.21 usa datos de
+Google y Todoist preparados en el servicio, con la autorización del usuario,
+para reducir la espera de la ejecución silenciosa. Falta validarla en el iPhone.
+Ver la documentación de registros antes de cambiar las acciones.
 
 ### Actualizar un cargador anterior a v0.14
 
@@ -302,6 +304,7 @@ node tools/check-shortcut.cjs   # entrega a Atajos con APIs simuladas
 node tools/check-logs.cjs       # historial, reintentos, autenticación y privacidad
 node tools/check-deadlines.cjs  # plazos, respuestas tardías, limpieza y SHA-256
 node tools/check-app-runner.cjs # script guardado, Keychain, caché y salida nativa
+node tools/check-managed-data.cjs # datos preparados, fallback y vencimiento
 npm i playwright && npx playwright install chromium
 node tools/preview.cjs          # -> preview/preview.png
 ```

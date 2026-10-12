@@ -15,7 +15,7 @@ const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 
 const epoch = Date.now();
 async function check({ inApp = false, renderFails = false, invalidOutput = false, useLoader = false, offline = false,
-  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false, googleNeverResponds = false, remoteRuns } = {}) {
+  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false, googleNeverResponds = false, remoteRuns, managedSnapshot } = {}) {
   const calls = [];
   let output;
   let errorText = "";
@@ -30,7 +30,7 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     console: { log() {}, error() {} },
     config: { runsInApp: inApp },
     Timer: { schedule(ms, repeat, callback) {
-      assert.ok([12000, 2000].includes(ms));
+      assert.ok([12000, 2000, 1500, 1000, 15000].includes(ms));
       const handle = setTimeout(callback, 0);
       return { invalidate() { clearTimeout(handle); } };
     } },
@@ -81,12 +81,18 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
       listContents: dir => [...files.keys()].filter(name => name.startsWith(dir + "/")).map(name => name.slice(dir.length + 1)),
     }) },
     Request: class {
+      constructor(url) { this.url = url; }
       async loadJSON() {
         if (remoteRuns && this.method === "POST") {
           assert.match(this.headers.Authorization, /^Bearer [a-f0-9]{64}$/);
           const batch = JSON.parse(this.body).runs;
           remoteRuns.push(...batch);
           return { accepted: batch.map(r => ({ id: r.id, count: r.events.length, revision: r.revision })) };
+        }
+        if (managedSnapshot) {
+          assert.equal(this.url, "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/calendar", "El modo administrado no debe llamar Google/Todoist en el telefono");
+          assert.match(this.headers.Authorization, /^Bearer [a-f0-9]{64}$/);
+          return managedSnapshot;
         }
         if (remoteRuns) return { events: [], calendars: [] };
         assert.equal(googleNeverResponds, true);
@@ -153,13 +159,23 @@ async function readDiagnostic(files) {
   await check({ useLoader: true });
   const remoteRuns = [];
   await check({ useLoader: true, remoteRuns,
-    overrides: { logRemote: true, logCollector: "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs", googleUrl: "https://example.test/calendar?token=test-token" },
+    overrides: { managedData: false, logRemote: true, logCollector: "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs", googleUrl: "https://example.test/calendar?token=test-token" },
     beforeRender: () => {
       assert.ok(remoteRuns.some(r => r.events.some(e => e.stage === "script_start")), "El inicio debe enviarse antes del dibujo");
       assert.equal(remoteRuns.at(-1).events.at(-1).stage, "render_start", "La etapa previa al WebView debe llegar sin esperar el PNG");
       assert.ok(!remoteRuns.some(r => r.events.some(e => e.stage === "output_call")));
     },
   });
+  const managedRuns = [];
+  const managedFiles = await check({ useLoader: true, remoteRuns: managedRuns,
+    managedSnapshot: { version: 1, google: { at: epoch, data: { events: [], calendars: [] } },
+      todoist: { at: epoch, data: { me: { id: "fixture" }, projects: [], tasks: [] } } },
+    overrides: { logRemote: true, logCollector: "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs", googleUrl: "https://example.test/calendar?token=test-token", todoistToken: "FIXTURE" },
+    beforeRender: () => assert.equal(managedRuns.length, 0, "La preparacion silenciosa no debe esperar envios de logs"),
+  });
+  const managedEvents = [...managedFiles.entries()].filter(([name]) => name.includes("/LockScreenCal-logs/") && !name.endsWith(".sync.json")).flatMap(([,value]) => JSON.parse(value).events);
+  assert.ok(managedEvents.some(e => e.stage === "google_ok"));
+  assert.ok(managedEvents.some(e => e.stage === "todoist_ok"));
   await check({ useLoader: true, offline: true });
   await check({ useLoader: true, inApp: true });
   await check({ useLoader: true, renderFails: true });
