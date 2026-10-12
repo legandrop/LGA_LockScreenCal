@@ -26,6 +26,14 @@ no se guarda en esta documentacion ni en fuente. Se confirmo un POST con la clav
 corregida. Falta la primera corrida real almacenada; la proxima ejecucion del
 Atajo debe recuperar las corridas pendientes sin editar el telefono.
 
+Las peticiones reales v0.16 seguian devolviendo 401 tras corregir la clave: no
+incluian el encabezado Authorization. Se corrigio el cliente v0.17 para asignar
+el diccionario completo a `req.headers`, evitando mutar la copia de su getter.
+Verificado con prueba de regresion y con la fabrica real enviando un registro
+sintetico al receptor real; se confirmo revision 2 y se leyo desde D1. Falta una
+corrida del telefono con v0.17; no confundir las pruebas sinteticas con la
+validacion del Atajo. El cargador instalado descarga esta mejora automaticamente.
+
 Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error
 1010, antes de entrar al Worker. Con User-Agent `LockScreenCal/0.16` llegaron al
 receptor correctamente. El cliente de registros se identifica con su version.

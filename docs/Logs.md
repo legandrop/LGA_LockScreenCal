@@ -28,6 +28,9 @@ Si `logRemote` ya esta presente, no duplicarlo. El cargador v0.15 ya instalado b
 la funcion de telemetria de `LockScreenCal.js` en cada corrida. No hace falta volver
 a reemplazar el cargador ni actualizar Apps Script para esta via.
 
+v0.17 asigna todos los encabezados de la peticion juntos para que Scriptable
+transmita Authorization; el cargador ya instalado recibe esa correccion.
+
 La clave de escritura se deriva localmente con SHA-256 y un prefijo propio del
 servicio a partir del token de Google. El receptor recibe esa clave derivada,
 nunca el token original. Solo acepta el usuario configurado en el gestor de

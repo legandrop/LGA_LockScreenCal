@@ -73,7 +73,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.16";
+const VERSION = "0.17";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -208,14 +208,17 @@ function createTelemetry(opts, version, initial) {
       }));
       const req = new Request(collector || opts.googleUrl + (opts.googleUrl.includes("?") ? "&" : "?") + "action=logs");
       req.method = "POST";
-      req.headers = { "Content-Type": "application/json", "User-Agent": "LockScreenCal/" + version };
+      const headers = { "Content-Type": "application/json", "User-Agent": "LockScreenCal/" + version };
       if (collector) {
         // Solo este servicio puede recibir la clave derivada; no URLs arbitrarias.
         if (collector !== "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs") throw new Error("Receptor no permitido");
         const token = opts.googleUrl.match(/[?&]token=([^&]+)/)?.[1];
         if (!token) throw new Error("Falta token de logs");
-        req.headers.Authorization = "Bearer " + logKey("LockScreenCal.logs.v1:" + decodeURIComponent(token));
+        headers.Authorization = "Bearer " + logKey("LockScreenCal.logs.v1:" + decodeURIComponent(token));
       }
+      // Se asigna el diccionario completo: modificar req.headers.Authorization
+      // puede cambiar solo la copia que devuelve el puente nativo de Scriptable.
+      req.headers = headers;
       req.body = JSON.stringify({ runs });
       req.timeoutInterval = 2;
       const reply = await withDeadline(req.loadJSON(), 2000);

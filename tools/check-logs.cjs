@@ -39,12 +39,16 @@ const client = vm.createContext({
     listContents: dir => [...files.keys()].filter(key => key.startsWith(dir + "/")).map(key => key.slice(dir.length + 1)),
   }) },
   Request: class {
-    constructor(url) { this.url = url; this.response = { statusCode: 200 }; }
+    constructor(url) { this.url = url; this.response = { statusCode: 200 }; this.nativeHeaders = {}; }
+    // Una propiedad puenteada devuelve una copia: mutar el getter no llama al
+    // setter nativo. La prueba verifica el encabezado realmente transmitido.
+    set headers(value) { this.nativeHeaders = { ...value }; }
+    get headers() { return { ...this.nativeHeaders }; }
     async loadJSON() {
       assert.equal(this.method, "POST");
       assert.equal(this.timeoutInterval, 2, "El envio no debe bloquear el fondo indefinidamente");
       requests.push(JSON.parse(this.body));
-      if (this.url.includes("chatgpt.site")) assert.equal(this.headers.Authorization, "Bearer " + require("node:crypto").createHash("sha256").update("LockScreenCal.logs.v1:test-token").digest("hex"));
+      if (this.url.includes("chatgpt.site")) assert.equal(this.nativeHeaders.Authorization, "Bearer " + require("node:crypto").createHash("sha256").update("LockScreenCal.logs.v1:test-token").digest("hex"));
       if (hanging) return new Promise(() => {});
       if (!online) throw new Error(this.url + " SECRET_NETWORK_MESSAGE");
       if (invalidAck) return { accepted: [] };

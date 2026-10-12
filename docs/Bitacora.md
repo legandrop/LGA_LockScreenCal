@@ -41,23 +41,25 @@ real, se construyo y se desplego correctamente. Falta un registro real del telef
 
 ## Pendiente
 
-0. **Confirmar la primera corrida real almacenada.** Lega compartio el cargador
-   instalado: `logRemote` y `logCollector` estan correctos, y usa el cargador
-   v0.15 que descarga la telemetria v0.16. Las peticiones reales llegaban al
-   receptor pero devolvian 401. Causa de los logs rechazados: al leer una captura
-   se interpreto un salto de linea como guion y se configuro una clave derivada
-   incorrecta. No era un error de configuracion del usuario. Se reemplazo el secreto
-   de Sites a partir del token exacto compartido, sin guardar valores en fuente,
-   y se redesplego la misma version del receptor (revision de entorno 2).
-   La nueva clave confirmo un POST real de prueba con 200 y lectura en D1; sin
-   clave o con clave incorrecta devuelve 401 y GET devuelve 405. El puente de
-   Google exacto del usuario tambien devolvio JSON valido en 9.1 s desde la nube.
-   Esto no confirma la causa del error del fondo. Se pidio una ejecucion mas del
-   Atajo sin tocar codigo ni copiar resultados para consultar nosotros el historial
-   pendiente. Falta recibirla. No pedir al usuario que vuelva a agregar opciones
-   que ya tiene ni que cambie el TOKEN: el problema de autenticacion se resolvio
-   exclusivamente en el servidor. Las acciones posteriores de Atajos siguen fuera
-   del alcance de estos registros.
+0. **Confirmar la primera corrida real almacenada con v0.17.** El cargador de
+   Lega esta bien configurado y no requiere cambios. Se corrigio una clave del
+   servidor transcrita incorrectamente y se verifico el receptor con la correcta.
+   Lega confirmo despues una ejecucion sin error; la estabilidad sigue sin probar.
+   Sus peticiones v0.16 continuaron devolviendo 401: los logs del Worker muestran
+   que no incluyen Authorization. El cliente hacia `req.headers.Authorization =`
+   despues de asignar el diccionario; eso no actualizaba los headers nativos.
+   v0.17 arma el diccionario completo y lo asigna una vez. La prueba que simula
+   getters como copias fallo con v0.16 y pasa con la correccion. Ademas se ejecuto
+   la fabrica real de telemetria en la nube con ese puente y el receptor real:
+   confirmo revision 2 y se leyo el registro sintetico en D1. No es una corrida
+   del iPhone. La correccion llega por GitHub sin pegar codigo; falta comprobar
+   la primera peticion real v0.17 y leer las corridas pendientes. Se recomendo uso
+   normal en lugar de multiples pruebas antes de verificar la recepcion.
+   El puente exacto de Google respondio JSON valido en 9.1 s desde la nube.
+   No atribuir el error del fondo al fallo de logs: el cliente captura fallos de
+   envio y conserva los registros pendientes. No pedir opciones que ya tiene,
+   otro visor ni cambios en Apps Script. Los errores posteriores de Base64 y de
+   aplicar el fondo siguen fuera del alcance de estos registros.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
