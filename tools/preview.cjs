@@ -55,6 +55,13 @@ const events = [
   const browser = await chromium.launch();
   const page = await browser.newPage({ timezoneId: "America/Argentina/Buenos_Aires", locale: "es-AR" });
   await page.setContent('<canvas id="c"></canvas>');
+  // Chromium puede cargar las fuentes locales despues del primer fillText.
+  // Esperarlas evita exportar una vista previa con cajas pero sin texto.
+  await page.evaluate(async () => {
+    await Promise.all([400, 500, 600, 700].map(weight =>
+      document.fonts.load(weight + " 16px system-ui", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 áéíóú")));
+    await document.fonts.ready;
+  });
   const payload = { now: NOW.getTime(), events, opts: { ...config, keywords: KEYWORDS }, footer: "act. 14:05" };
   const b64 = await page.evaluate(([code, W, H, payload]) => {
     eval(code + "\nwindow.drawCalendar = drawCalendar;");
