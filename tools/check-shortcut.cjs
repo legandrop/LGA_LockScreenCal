@@ -73,21 +73,32 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     }) },
     Request: class {
       response = { statusCode: 200 };
-      async loadString() { if (offline) throw new Error("Sin internet"); return source; }
+      async loadString() {
+        if (offline) throw new Error("Sin internet");
+        // Simula trabajo asincrono al final del archivo descargado: la salida
+        // del cargador tiene que esperar tambien ese final, no solo main().
+        return source + "\nawait Promise.resolve(); loadedSettled = true;";
+      }
     },
   });
-  await vm.runInContext("(async () => {\n" + (useLoader ? loader : source) + "\n})()", context);
-  assert.equal(output, png, "Atajos debe recibir el base64 del PNG");
-  assert.equal(calls.at(-1), "complete");
+  const returned = await vm.runInContext("(async () => {\n" + (useLoader ? loader : source) + "\n})()", context);
+  assert.equal(useLoader ? returned : output, png, "Atajos debe recibir el base64 del PNG");
+  if (useLoader) {
+    assert.equal(output, undefined, "La salida nativa no debe indicarse desde la funcion descargada");
+    assert.ok(!calls.includes("complete"), "La funcion descargada no debe finalizar la accion exterior");
+    if (!offline && !storageFails) assert.equal(context.loadedSettled, true, "El cargador debe esperar el final asincrono");
+  } else {
+    assert.equal(calls.at(-1), "complete");
+  }
   assert.equal(renders, expectRender ? 1 : 0, "Una corrida repetida no debe crear otro dibujo");
   if (renderFails || invalidOutput || busyWithoutCache) {
     assert.match(errorText, busyWithoutCache ? /actualizacion en curso/ : renderFails ? /Fallo de dibujo simulado/ : /PNG valido/);
-    assert.deepEqual(calls, ["encode", "output", "complete"]);
+    assert.deepEqual(calls, useLoader ? ["encode"] : ["encode", "output", "complete"]);
   } else if (inApp) {
-    assert.deepEqual(calls, ["output", "decode", "preview", "complete"]);
+    assert.deepEqual(calls, useLoader ? ["decode", "preview"] : ["output", "decode", "preview", "complete"]);
   } else {
     assert.equal(errorText, "", "Una corrida normal no debe entregar el fondo de error");
-    assert.deepEqual(calls, ["output", "complete"]);
+    assert.deepEqual(calls, useLoader ? [] : ["output", "complete"]);
   }
   return files;
 }
@@ -115,8 +126,14 @@ async function readDiagnostic(files) {
   await check({ invalidOutput: true });
   await check({ useLoader: true });
   await check({ useLoader: true, offline: true });
+  await check({ useLoader: true, inApp: true });
+  await check({ useLoader: true, renderFails: true });
+  await check({ useLoader: true, invalidOutput: true });
   const files = await check();
   await check({ files, now: epoch + 1000, expectRender: false });
+  assert.equal(JSON.parse(files.get("/cache/LockScreenCal-delivery.json")).startedAt, epoch + 1000);
+  assert.match(await readDiagnostic(files), /No confirma que Atajos la recibio/);
+  await check({ files, now: epoch + 2000, expectRender: false, useLoader: true });
   await check({ files, now: epoch + 60000 });
   await check({ files, now: epoch + 60001, inApp: true });
   await check({ files, now: epoch + 60002, overrides: { onlyCalendars: ["Ejemplo"] } });
@@ -148,5 +165,5 @@ async function readDiagnostic(files) {
   assert.equal(coldFiles.has("/cache/LockScreenCal-output.txt"), false, "El aviso no debe guardarse como fondo bueno");
   assert.match(await readDiagnostic(new Map()), /No hay registro/);
   assert.match(await readDiagnostic(new Map([["/cache/LockScreenCal-run.json", "roto"]])), /No se pudo leer/);
-  console.log("OK: salida a Atajos, app, errores, cargador, repeticion, solapamiento y recuperacion de marcas vencidas");
+  console.log("OK: retorno del cargador al finalizar, entrega anterior, app, errores, repeticion, solapamiento y diagnostico sin confirmacion de recepcion");
 })().catch(err => { console.error(err); process.exitCode = 1; });

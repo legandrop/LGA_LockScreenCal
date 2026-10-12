@@ -68,7 +68,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.13";
+const VERSION = "0.14";
 
 // Salir varias veces de una app dispara varias automatizaciones. Se guarda el
 // ultimo fondo para que esas corridas no repitan consultas y WebViews; el aviso
@@ -111,6 +111,14 @@ function runStore() {
   };
   return {
     phase, cached,
+    delivery: (name, b64) => {
+      // Tambien las corridas que reutilizan un fondo tienen su propio intento
+      // de salida. No pisan la etapa de otra corrida que aun esta dibujando.
+      write("delivery.json", JSON.stringify({
+        version: VERSION, startedAt, updatedAt: Date.now(), phase: name,
+        base64Chars: b64.length,
+      }));
+    },
     active: () => {
       const run = json("active.json");
       const age = run && Date.now() - run.startedAt;
@@ -509,7 +517,9 @@ async function main() {
   if (active || (previous && age >= 0 && age < COOLDOWN_MS && !config.runsInApp)) {
     console.log(active ? "Ya hay una actualizacion en curso" : "Se reutiliza el fondo del ultimo minuto");
     b64 = previous ? previous.b64 : Data.fromPNG(errorImage("Ya hay una actualizacion en curso. Espera dos minutos y ejecuta una sola vez.", W, H)).toBase64String();
+    store.delivery("Salida preparada con fondo reutilizado o aviso", b64);
     Script.setShortcutOutput(b64);
+    store.delivery("Funcion de salida invocada (sin confirmacion de Atajos)", b64);
     Script.complete();
     return;
   }
@@ -528,13 +538,15 @@ async function main() {
     }
     // Se registra ANTES de cada puente nativo: si iOS corta el proceso, la
     // ultima etapa queda en disco aunque el catch no llegue a ejecutarse.
-    store.phase("Entrega a Atajos", result);
+    store.phase("Preparacion de salida", result);
+    store.delivery("Salida preparada", b64);
     Script.setShortcutOutput(b64);
+    store.delivery("Funcion de salida invocada (sin confirmacion de Atajos)", b64);
     if (config.runsInApp) {
       store.phase("Vista previa en Scriptable", result);
       await QuickLook.present(Image.fromData(Data.fromBase64String(b64)), true);
     }
-    store.phase("Salida entregada", result);
+    store.phase("Salida preparada (sin confirmacion de Atajos)", result);
   } finally {
     store.release();
   }

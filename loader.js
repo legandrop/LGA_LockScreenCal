@@ -34,4 +34,17 @@ try {
 }
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-await new AsyncFunction("OVERRIDES", code)(MI_CONFIG);
+let fondo;
+// El script descargado prepara la salida. El cargador espera que termine antes
+// de devolversela a Atajos; complete() dentro de esa funcion no debe terminar
+// el cargador mientras todavia esta esperando su promesa.
+await new AsyncFunction("OVERRIDES", "Script", code)(MI_CONFIG, {
+  setShortcutOutput: valor => { fondo = valor; },
+  complete: () => {},
+});
+if (typeof fondo !== "string" || !fondo.startsWith("iVBORw0KGgo")) {
+  throw new Error("El script no preparo un PNG valido para Atajos");
+}
+// return es una salida documentada para Run Inline Script. Queda en el codigo
+// exterior de la accion, despues de resolver la funcion descargada.
+return fondo;

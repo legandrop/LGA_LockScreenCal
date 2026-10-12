@@ -201,11 +201,43 @@ Después del error, sin volver a ejecutar el Atajo:
 3. Ejecutalo y mandá una captura del texto que muestra al que lo mantiene.
 
 El diagnóstico solo lee el registro local: muestra versión, fecha, última etapa y
-tiempo hasta esa etapa. No incluye tokens, URLs ni eventos. No vuelve a correr el
-calendario ni reemplaza el registro. Si no hay registro, puede estar usando una
-versión anterior a v0.13, haber fallado antes de iniciar el script o no haber
-podido guardar el archivo. No identifica por sí solo si el corte fue por memoria
-o por tiempo.
+tiempo hasta esa etapa. Desde v0.14 también muestra el último intento de salida,
+incluidas las corridas que reutilizaron un fondo, y la longitud del PNG en base64.
+El estado `ok` indica que el script preparó la salida sin error de JavaScript;
+**no confirma que Atajos la recibió**. No incluye tokens, URLs ni eventos. No
+vuelve a correr el calendario ni reemplaza el registro. Si no hay registro, puede
+estar usando una versión anterior a v0.13, haber fallado antes de iniciar el script
+o no haber podido guardar el archivo.
+
+### Actualizar un cargador anterior a v0.14
+
+Si el diagnóstico llega hasta la salida y Atajos igual muestra el error, v0.14
+cambia cómo el cargador devuelve el PNG: espera que termine la función descargada
+y usa `return` al final del código exterior. Esta corrección necesita actualizar
+el código del Atajo una vez; descargar solo `LockScreenCal.js` no cambia el
+cargador que ya está pegado.
+
+1. En el editor del Atajo, desplegá la primera acción de Scriptable con **›**.
+2. Al final del código, reemplazá solo esta línea:
+   ```js
+   await new AsyncFunction("OVERRIDES", code)(MI_CONFIG);
+   ```
+   por:
+   ```js
+   let fondo;
+   await new AsyncFunction("OVERRIDES", "Script", code)(MI_CONFIG, {
+     setShortcutOutput: valor => { fondo = valor; },
+     complete: () => {},
+   });
+   if (typeof fondo !== "string" || !fondo.startsWith("iVBORw0KGgo")) {
+     throw new Error("El script no preparo un PNG valido para Atajos");
+   }
+   return fondo;
+   ```
+3. Ejecutá el Atajo una vez. Si sigue fallando, consultá el diagnóstico actualizado.
+
+El retorno está verificado con APIs simuladas; falta confirmar esta vía en el
+iPhone. La causa del fallo de recepción de Atajos todavía no está confirmada.
 
 ---
 
@@ -230,7 +262,7 @@ o por tiempo.
 | Archivo | Qué es |
 |---|---|
 | `LockScreenCal.js` | El script: lee calendarios del iPhone, el puente de Google y Todoist; dibuja la imagen en un `<canvas>` dentro de un WebView; se la pasa a Atajos en base64 |
-| `loader.js` | Lo que va adentro del Atajo: baja `LockScreenCal.js` de este repo y lo corre con tu `MI_CONFIG`. Sin internet, usa la última copia |
+| `loader.js` | Lo que va adentro del Atajo: baja `LockScreenCal.js`, espera que termine y devuelve el PNG con `return`. Sin internet, usa la última copia |
 | `google/Code.gs` | El puente opcional con Google Calendar |
 | `tools/preview.cjs` | Vista previa en la compu, con datos de ejemplo |
 | `tools/diagnostico.js` | Se ejecuta en Scriptable para leer la última etapa después de un corte |
