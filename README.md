@@ -236,8 +236,10 @@ cargador que ya está pegado.
    ```
 3. Ejecutá el Atajo una vez. Si sigue fallando, consultá el diagnóstico actualizado.
 
-El retorno está verificado con APIs simuladas; falta confirmar esta vía en el
-iPhone. La causa del fallo de recepción de Atajos todavía no está confirmada.
+El retorno está verificado con APIs simuladas y la primera ejecución manual con
+el cargador actualizado funcionó en el iPhone. Falta comprobar su estabilidad con
+las automatizaciones repetidas. La causa del fallo anterior todavía no está
+confirmada.
 
 ---
 

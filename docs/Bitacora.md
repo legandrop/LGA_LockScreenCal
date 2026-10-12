@@ -11,7 +11,7 @@ El 12/10 Lega volvió a reportar el corte de Scriptable sin salida. Al principio
 pasaba a veces al entrar y salir repetidamente de WhatsApp (el Atajo se dispara al
 cerrarla). Parecía haber dejado de funcionar desde el día anterior, pero durante
 la conversación comprobó que alguna corrida de hoy sí actualizó el fondo. El
-problema sigue siendo intermitente. Luego ejecutó el Atajo y leyó el diagnóstico
+problema era intermitente. Luego ejecutó el Atajo y leyó el diagnóstico
 desde Scriptable: **v0.13, última etapa "Salida entregada", 7.8 s, estado ok**, pero
 Atajos había mostrado otra vez el error de ejecución sin salida. Esa etapa se
 escribía después de llamar a `setShortcutOutput`; **no confirma que Atajos recibió
@@ -35,18 +35,19 @@ ya está en el Atajo**; no llega con la descarga automática del script principa
 También corrige la etapa a "Salida preparada (sin confirmacion de Atajos)" y
 registra por separado cada intento de salida, incluidos los fondos reutilizados.
 Las pruebas verifican retorno normal, caché sin internet, fondo de error, app y
-espera del final asíncrono de la función descargada. **Falta confirmar v0.14 con el
-cargador actualizado en el iPhone**; no se probó que el ciclo de finalización sea
-la causa del error real.
+espera del final asíncrono de la función descargada. **Lega actualizó el final del
+cargador, ejecutó el Atajo y reportó que esta vez funcionó bien.** La primera
+ejecución manual con la nueva entrega fue exitosa; falta comprobar que se mantenga
+estable con las automatizaciones y corridas repetidas. Esa prueba no demuestra
+por sí sola la causa del fallo intermitente anterior.
 
 ## Pendiente
 
-0. **Actualizar el final del cargador del Atajo y probar v0.14.** El bloque exacto
-   está en el README y al final de `loader.js`. Ejecutar una sola vez y comprobar
-   que Atajos acepta la salida y actualiza el fondo. Si sigue, copiar nuevamente
-   `tools/diagnostico.js` en Scriptable para consultar también el último intento de
-   salida y su longitud en base64. No atribuir el fallo a Google/Todoist, memoria,
-   tiempo ni solapamiento sin más evidencia.
+0. **Comprobar la estabilidad de v0.14 con las automatizaciones de WhatsApp.** El
+   cargador ya está actualizado y la primera ejecución manual funcionó. Si vuelve
+   el error, copiar nuevamente `tools/diagnostico.js` en Scriptable para consultar
+   también el último intento de salida y su longitud en base64. No atribuir el
+   fallo a Google/Todoist, memoria, tiempo ni solapamiento sin más evidencia.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice
