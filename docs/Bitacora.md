@@ -36,7 +36,8 @@ requiere clave derivada del token local; no hay API publica de lectura. Guarda
 solo etapas, tiempos, cantidades, codigos y tamanos, hasta 500 corridas. Se verifico
 un POST real y su lectura directa mediante las herramientas de administracion de
 D1. Se recupero el historial completo de esas corridas del iPhone. El intento
-v0.19 de las 19:21 solo tiene el inicio remoto. Ver `docs/Receptor.md` para identidad,
+v0.19 de las 19:21 se recupero al ejecutar otra vez, con un timeout de Google
+tras 21 min 42 s. Ver `docs/Receptor.md` para identidad,
 ubicacion del proyecto, acceso y procedimiento de consulta.
 
 Sintaxis, entrega simulada, fallback de Google que nunca responde, plazos de logs,
@@ -55,7 +56,8 @@ PNG y llama al setter nativo exterior y a `Script.complete()` como ultima accion
 Una ejecucion manual muestra la vista previa; el parametro `atajo` la omite.
 Todoist tambien tiene un plazo logico de 15 s, sujeto a la misma suspension.
 Esto NO convierte por codigo una ejecucion en segundo plano en primer plano.
-La alternativa abre Scriptable y aun requiere validacion real en el telefono.
+La alternativa abre Scriptable. La ejecucion manual en el telefono ya funciono;
+falta validar su llamada desde Atajos y la automatizacion.
 
 Se probaron instalacion sin secretos en archivos, proteccion de archivos
 personales, cache offline, descargas invalidas, salida nativa despues del await,
@@ -64,19 +66,27 @@ reales, servicios Google/Todoist/receptor reales y dibujo simulado preparo la
 salida en 11.6 s; Google respondio en 7.0 s y Todoist en 0.4 s. Su registro
 `foreground-probe-...` se confirmo en D1. No es una prueba de iOS.
 
+**Prueba real v0.20, 12/10 a las 19:43/19:44 locales:** el Atajo existente
+volvio a mostrar el error. Su registro `mv5u9946-egyh6vcrvxd` confirma dos copias
+preparadas, timeout de Google tras 21.7 s y retorno preparado a los 26.7 s.
+El script guardado `mv5ua5fu-vvrcyb6ohwk` respondio Google en 7.4 s, Todoist en
+0.6 s, preparo el PNG a los 9.5 s y registro `app_preview` a los 9.8 s. Lega
+confirmo que Scriptable mostro la imagen. Esto valida esa corrida manual, no
+la recepcion de Atajos ni estabilidad repetida. Los registros se consultaron
+directamente en D1, sin pedir diagnosticos al usuario.
+
 ## Pendiente
 
-0. **Probar el script guardado en primer plano.** La prueba aislada del Atajo
-   volvio a fallar a las 19:22 locales. No pedir otra serie de repeticiones.
-   Ejecutar el Atajo existente una vez para preparar el archivo v0.20; ese intento
-   aun puede dar el error anterior. Consultar directamente `script_start.count`.
-   Luego abrir Scriptable y ejecutar `LGA_LockScreenCal_App` manteniendo la app
-   abierta hasta la vista previa. Leer D1 sin pedir exports. Si funciona, guiar
-   un cambio de la primera accion para ejecutar el script guardado en la app,
-   con parametro `atajo`, y reconectar la salida a Base64. Confirmar las opciones
-   reales de la interfaz antes de dar nombres de botones. La captura de las tres
-   acciones compactas no muestra una opcion de primer plano. No asumir que existe
-   en Run Inline Script. Esta alternativa abre Scriptable durante la actualizacion.
+0. **Cambiar y probar la primera accion del Atajo.** El script guardado ya
+   esta preparado y mostro la imagen en Scriptable. Buscar Scriptable en Atajos,
+   elegir la accion que ejecuta un script guardado (`Run Script` en la documentacion),
+   seleccionar `LGA_LockScreenCal_App`, parametro `atajo`, y activar la ejecucion
+   dentro de la app (`Run in App`). Estas opciones estan documentadas en
+   https://docs.scriptable.app/args/; confirmar su ubicacion si la UI difiere.
+   Reemplazar la accion inline y reconectar el `Output` de la nueva accion a
+   `Decodificar`. Conservar la accion de fondo. Validar una ejecucion y leer D1.
+   No pedir que copie codigo, tokens o logs. Esta alternativa abre Scriptable
+   durante la actualizacion; falta comprobar que Atajos reciba y aplique el PNG.
 1. **Link para compartir.** Lega tiene que duplicar su Atajo, dejar la copia con
    `const MI_CONFIG = {};` (sin su URL de Google ni su token de Todoist), compartirla
    como enlace de iCloud y pasar el link. Va en el `README.md` donde dice

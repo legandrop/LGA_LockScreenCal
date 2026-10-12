@@ -72,8 +72,16 @@ de red. Una ejecucion manual desde Scriptable muestra el PNG; con parametro
 `atajo` entrega base64 sin abrir la vista previa. El setter nativo exterior se
 invoca despues de esperar todo el programa y `Script.complete()` es la ultima
 accion. Ejecutarlo dentro de la app requiere abrir Scriptable; el script no
-puede cambiar por si solo el modo de ejecucion de la accion de Atajos. La
-estabilidad en el telefono todavia debe comprobarse.
+puede cambiar por si solo el modo de ejecucion de la accion de Atajos.
+La prueba manual en el iPhone del 12/10 mostro la imagen y envio sus registros;
+falta comprobar la entrega desde Atajos y la estabilidad de las automatizaciones.
+
+Para conectar la alternativa, buscar Scriptable en Atajos y elegir la accion
+para ejecutar un script guardado, `Run Script`. Seleccionar `LGA_LockScreenCal_App`,
+parametro `atajo`, y habilitar `Run in App` en sus opciones. Ambos nombres estan
+documentados en [Scriptable](https://docs.scriptable.app/args/); su ubicacion puede
+variar en la interfaz. Esa accion reemplaza la inline; `Decodificar` debe tomar
+el `Output` de la nueva accion. La accion de establecer fondo conserva sus ajustes.
 
 ## Alcance del diagnostico
 

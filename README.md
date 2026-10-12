@@ -225,8 +225,8 @@ con los calendarios del iPhone; iOS puede suspender ese temporizador.
 v0.20 prepara automáticamente un script guardado, `LGA_LockScreenCal_App`, para
 quienes usan el receptor administrado. Conserva los ajustes en Keychain del
 teléfono y permite probar la ejecución abriendo Scriptable, sin volver a pegar
-código. Esta alternativa aún necesita validación en iOS; ver la documentación
-de registros antes de cambiar las acciones del Atajo.
+código. La prueba manual en el iPhone mostró la imagen; falta validar su llamada
+desde Atajos. Ver la documentación de registros antes de cambiar las acciones.
 
 ### Actualizar un cargador anterior a v0.14
 

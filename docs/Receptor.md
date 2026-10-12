@@ -42,13 +42,19 @@ La corrida anterior v0.16 tambien espero Google durante 45 min 31 s. Desde v0.19
 priorizan pendientes recientes para recuperar el ultimo intento antes que la
 cola vieja. Un corte antes de ejecutar la fabrica
 remota de telemetria queda fuera de su alcance. La corrida real v0.19 de las
-19:21 solo tiene el inicio; no atribuir su estado posterior por ausencia remota.
+19:21 se recupero al ejecutar de nuevo: timeout de Google tras 21 min 42 s.
 
 v0.20 prepara un script generico guardado en Scriptable para probar la ejecucion
 en primer plano. `script_start.count` indica las copias locales/iCloud preparadas;
 no transmite sus ajustes, que quedan en Keychain del telefono. La prueba
 `foreground-probe-...` de nube verifica Google, Todoist y receptor con dibujo
 simulado; no demuestra que el Atajo funcione en iOS.
+
+La prueba real v0.20 del 12/10 a las 19:44 preparo un PNG en 9.5 s y registro
+`app_preview`; Lega confirmo la imagen en Scriptable. La corrida inline de las
+19:43 tuvo timeout de Google y preparo la salida en 26.7 s, pero Atajos mostro
+error. Ambas quedaron en D1. Falta validar la accion que llama al script guardado
+dentro de la app, y la aplicacion efectiva del fondo.
 
 Las peticiones de Python-urllib sin identificacion explicita devolvian 403, error
 1010, antes de entrar al Worker. Con User-Agent `LockScreenCal/0.16` llegaron al
