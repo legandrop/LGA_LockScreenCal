@@ -76,7 +76,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.23";
+const VERSION = "0.24";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -268,8 +268,9 @@ async function managedAppRunner() {
   const settings = JSON.parse(Keychain.get(settingsKey));
   const fm = FileManager.local();
   const cache = fm.joinPath(fm.libraryDirectory(), "LockScreenCal.js");
-  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.23", startedAt: Date.now(), events: [], revision: 0 };
-  const context = { record, skipPreview: true, fromShortcut: !!config.runsWithSiri || args.shortcutParameter === "atajo" };
+  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.24", startedAt: Date.now(), events: [], revision: 0 };
+  const fileOutput = args.shortcutParameter === "archivo";
+  const context = { record, skipPreview: true, fromShortcut: !!config.runsWithSiri || fileOutput || args.shortcutParameter === "atajo" };
   let source, output;
   const attachTrace = code => {
     const section = code.split("// ==== TRACE START ====")[1]?.split("// ==== TRACE END ====")[0];
@@ -325,7 +326,31 @@ async function managedAppRunner() {
     context.trace?.event("loader_return_prepared", { base64Chars: output.length });
     // La llamada nativa se hace en el cargador exterior, despues de esperar
     // todo el programa. No se entrega una promesa como salida de la accion.
-    Script.setShortcutOutput(output);
+    let shortcutOutput = output;
+    if (fileOutput) {
+      // Scriptable admite una ruta de iCloud como archivo de salida. Se escriben
+      // bytes comprimidos, sin crear otra imagen nativa ni texto para Atajos.
+      const cloud = FileManager.iCloud();
+      const directory = cloud.joinPath(cloud.documentsDirectory(), "LockScreenCal-output");
+      cloud.createDirectory(directory, true);
+      const path = cloud.joinPath(directory, "wallpaper-" + record.id + ".png");
+      cloud.write(path, Data.fromBase64String(output));
+      if (!cloud.fileExists(path)) throw new Error("No se pudo preparar el archivo PNG en iCloud");
+      // Cada corrida conserva su archivo mientras Atajos lo consume. Solo se
+      // retiran nuestros PNG de mas de una hora; la limpieza no impide entregar.
+      try {
+        for (const name of cloud.listContents(directory)) {
+          if (!/^wallpaper-[a-z0-9]+-[a-z0-9]+\.png$/.test(name)) continue;
+          const previous = cloud.joinPath(directory, name);
+          const date = cloud.modificationDate(previous);
+          if (date && Date.now() - date.getTime() > 3600000) cloud.remove(previous);
+        }
+      } catch (_) {}
+      shortcutOutput = path;
+      context.trace?.event("output_prepared", { count: 1, base64Chars: output.length });
+    }
+    Script.setShortcutOutput(shortcutOutput);
+    context.trace?.event("output_call", { count: fileOutput ? 1 : 0, base64Chars: output.length });
     // Los logs se envian con la salida ya entregada. No bloquean su preparacion.
     await context.trace?.flush();
     if (config.runsInApp && !context.fromShortcut) {
@@ -411,7 +436,10 @@ function runStore(trace) {
     if (!info || typeof info.key !== "string" || (info.key !== key &&
         !(allowPreviousVersion && info.key.split(":")[1] === String(hash >>> 0)))) return null;
     const b64 = read("output.txt");
-    return typeof b64 === "string" && b64.startsWith("iVBORw0KGgo") ? { b64, at: info.at } : null;
+    // El prefijo no detecta una lectura parcial. Se exige el tamano completo
+    // registrado al guardar; las copias antiguas se regeneran una sola vez.
+    return typeof b64 === "string" && b64.startsWith("iVBORw0KGgo") &&
+      b64.length === info.base64Chars ? { b64, at: info.at } : null;
   };
   return {
     phase, cached,
@@ -434,7 +462,7 @@ function runStore(trace) {
       phase("Inicio");
     },
     save: b64 => {
-      if (write("output.txt", b64)) write("output.json", JSON.stringify({ key, at: Date.now() }));
+      if (write("output.txt", b64)) write("output.json", JSON.stringify({ key, at: Date.now(), base64Chars: b64.length }));
     },
     release: () => {
       try {

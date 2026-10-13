@@ -8,16 +8,22 @@ const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 const fixture = { logCollector: 'https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs',
   googleUrl: 'SECRET_GOOGLE', todoistToken: 'SECRET_TODOIST', keywords: { SECRET_PROJECT: '#000' }, logRemote: false };
 const good = 'const VERSION = "0.20"; function drawCalendar() {}\nScript.setShortcutOutput(' + JSON.stringify(png) + '); Script.complete(); await Promise.resolve(); settled = true;';
-async function check({ offline = false, invalidDownload = false, malformedDownload = false, fromShortcut = true, missingOutput = false, freshCodeCached = false, stalledDownload = false, refreshingCode = false, expiredRefresh = false } = {}) {
+async function check({ offline = false, invalidDownload = false, malformedDownload = false, fromShortcut = true, missingOutput = false, freshCodeCached = false, stalledDownload = false, refreshingCode = false, expiredRefresh = false, fileOutput = false, writeFails = false } = {}) {
   const files = new Map(); const keys = new Map(); const calls = []; let downloads = 0;
   if (refreshingCode || expiredRefresh) files.set("/lib/LockScreenCal-code-refresh.json", JSON.stringify({id:"other",at:Date.now()-(expiredRefresh?5000:0)}));
   if (freshCodeCached) files.set("/lib/LockScreenCal-code-at.txt", String(Date.now()));
   files.set('/lib/LockScreenCal.js', missingOutput ? 'function drawCalendar() {}' : good);
   const manager = kind => ({ libraryDirectory: () => '/lib', documentsDirectory: () => '/' + kind + '/documents',
-    joinPath: (a,b) => a + '/' + b, fileExists: p => files.has(p), readString: p => files.get(p), writeString: (p,v) => files.set(p,v), remove: p => files.delete(p) });
+    joinPath: (a,b) => a + '/' + b, fileExists: p => files.has(p), readString: p => files.get(p), writeString: (p,v) => files.set(p,v), remove: p => files.delete(p),
+    createDirectory() {}, write(p,v) { if (writeFails) throw new Error('No se pudo escribir'); files.set(p,v); },
+    listContents: dir => [...files.keys()].filter(p=>p.startsWith(dir+'/')).map(p=>p.slice(dir.length+1)),
+    modificationDate: p => new Date(Date.now() - (p.includes('old') ? 3600001 : 1000)) });
+  files.set('/cloud/documents/LockScreenCal-output/wallpaper-old-owned.png', Buffer.from('old'));
+  files.set('/cloud/documents/LockScreenCal-output/personal.png', Buffer.from('personal'));
+  files.set('/cloud/documents/LockScreenCal-output/wallpaper-recent-owned.png', Buffer.from('recent'));
   const context = vm.createContext({ console, config: { runsInApp: true, runsWithSiri: false },
     Timer: { schedule(ms,repeat,callback) { const timer = setTimeout(callback,ms); return { invalidate() { clearTimeout(timer); } }; } },
-    args: { shortcutParameter: fromShortcut ? 'atajo' : null },
+    args: { shortcutParameter: fileOutput ? 'archivo' : fromShortcut ? 'atajo' : null },
     Keychain: { contains: k => keys.has(k), get: k => keys.get(k), set: (k,v) => keys.set(k,v) },
     FileManager: { local: () => manager('local'), iCloud: () => manager('cloud') },
     Request: class { response = { statusCode: 200 }; async loadString() {
@@ -26,9 +32,14 @@ async function check({ offline = false, invalidDownload = false, malformedDownlo
       if (offline) throw new Error('Sin internet');
       return invalidDownload ? '<html>error</html>' : malformedDownload ? 'function drawCalendar() {' : missingOutput ? 'function drawCalendar() {}' : good;
     } },
-    Script: { setShortcutOutput(value) { assert.equal(context.settled,true,'La salida nativa debe esperar el final asincrono'); assert.equal(value,png); calls.push('output'); }, complete() { calls.push('complete'); } },
+    Script: { setShortcutOutput(value) {
+      assert.equal(context.settled,true,'La salida nativa debe esperar el final asincrono');
+      if (fileOutput) { assert.match(value,/^\/cloud\/documents\/LockScreenCal-output\/wallpaper-[a-z0-9]+-[a-z0-9]+\.png$/); assert.equal(files.get(value).toString('base64'),png); }
+      else assert.equal(value,png);
+      calls.push('output');
+    }, complete() { calls.push('complete'); } },
     QuickLook: { async present() { calls.push('preview'); } },
-    Image: { fromData(value) { return value; } }, Data: { fromBase64String(value) { return value; } },
+    Image: { fromData(value) { assert.ok(!fileOutput,'El archivo no debe decodificarse a una imagen nativa'); return value; } }, Data: { fromBase64String(value) { return Buffer.from(value,'base64'); } },
   });
   vm.runInContext(appSection, context);
   assert.equal(context.prepareManagedApp({}),0,'No se deben instalar archivos para usuarios sin el receptor administrado');
@@ -40,12 +51,19 @@ async function check({ offline = false, invalidDownload = false, malformedDownlo
   files.set('/local/documents/LGA_LockScreenCal_App.js','MI_SCRIPT_PERSONAL');
   assert.equal(context.prepareManagedApp(fixture),1);
   assert.equal(files.get('/local/documents/LGA_LockScreenCal_App.js'),'MI_SCRIPT_PERSONAL','No se deben pisar scripts personales');
-  if (missingOutput) {
-    await assert.rejects(vm.runInContext('(async()=>{'+generated+'})()',context),/PNG valido/);
+  if (missingOutput || writeFails) {
+    await assert.rejects(vm.runInContext('(async()=>{'+generated+'})()',context),missingOutput?/PNG valido/:/No se pudo escribir/);
     assert.deepEqual(calls,[],'Un PNG invalido no debe entregarse ni completar la accion como exitosa');
   } else {
     await vm.runInContext('(async()=>{'+generated+'})()',context);
-    assert.deepEqual(calls,fromShortcut?['output','complete']:['output','preview','complete']);
+    assert.deepEqual(calls,fromShortcut||fileOutput?['output','complete']:['output','preview','complete']);
+    if (fileOutput) {
+      assert.equal(files.has('/cloud/documents/LockScreenCal-output/wallpaper-old-owned.png'),false);
+      assert.equal(files.has('/cloud/documents/LockScreenCal-output/personal.png'),true);
+      assert.equal(files.has('/cloud/documents/LockScreenCal-output/wallpaper-recent-owned.png'),true);
+      await vm.runInContext('(async()=>{'+generated+'})()',context);
+      assert.equal([...files.keys()].filter(p=>/wallpaper-[a-z0-9]+-[a-z0-9]+\.png$/.test(p)).length,3,'Cada salida debe tener un archivo distinto; el reciente se conserva');
+    }
     if (freshCodeCached || refreshingCode) assert.equal(downloads,0,'El codigo reciente no debe volver a descargarse');
     if (expiredRefresh) assert.equal(downloads,1);
     if (!refreshingCode) assert.equal(files.has("/lib/LockScreenCal-code-refresh.json"),false,"La marca de descarga debe liberarse despues de exito o fallo");
@@ -57,5 +75,6 @@ async function check({ offline = false, invalidDownload = false, malformedDownlo
   await check({refreshingCode:true}); await check({expiredRefresh:true});
   await check({freshCodeCached:true}); await check({stalledDownload:true});
   await check({invalidDownload:true}); await check({malformedDownload:true}); await check({missingOutput:true});
+  await check({fileOutput:true,fromShortcut:false}); await check({fileOutput:true,writeFails:true});
   console.log('OK: preparacion privada, Keychain, archivos personales, cache, salida nativa y complete al final');
 })().catch(error=>{console.error(error);process.exitCode=1;});

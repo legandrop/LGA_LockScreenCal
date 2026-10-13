@@ -8,7 +8,26 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 ## Resumen
 
 **Lega confirmo que v0.22 funciono bien, silenciosa y con colores/tareas
-recuperados. v0.23 refuerza la proteccion de rafagas; falta observar uso habitual.**
+recuperados. Una repeticion v0.23 fallo en Base64 de Atajos. v0.24 prepara
+entrega optativa como archivo PNG; falta probar esa entrega en el iPhone.**
+Las corridas de las 21:31:25 y 21:31:32 (`mv5y3yk9-bztb9ytc9x` y
+`mv5y43yd-5txs169lsq7`) prepararon 280288 y 105128 caracteres respectivamente.
+La segunda reutilizo la copia, que deberia haber conservado exactamente el tamano.
+No hubo consultas de red en esa repeticion. Esto identifica una anomalia de la
+copia, pero no demuestra la causa interna del error Texto/NSString.
+v0.24 exige el tamano guardado en output.json para reutilizar output.txt;
+rechaza copias antiguas sin ese campo y lecturas parciales aun con prefijo PNG.
+Con parametro `archivo`, el cargador guardado escribe bytes PNG en
+Scriptable/iCloud/LockScreenCal-output y entrega su ruta nativa, admitida por
+Script.setShortcutOutput. El archivo por corrida evita pisar una salida activa;
+solo limpia sus PNG de mas de una hora. No sube imagenes al receptor.
+El parametro `atajo` conserva base64. Para instalar el nuevo cargador hay que
+ejecutar primero el Atajo existente cuando venza la cache de codigo (cinco minutos).
+Despues cambiar Texto a `archivo`, eliminar Decodificar y conectar el Output
+de Run directamente al campo de imagen de Establecer. Ambos interruptores siguen
+apagados. No requiere pegar codigo. Ver docs/Logs.md. Sintaxis, modos de entrega,
+fallo de escritura, no decodificacion de imagen nativa, limpieza y 18 llamadas
+solapadas en ambos modos verificados en nube; no reemplazan la prueba real de iOS.
 El registro real de las 21:15:02 (`mv5xiw1k-xpueujnbsnp`) confirma 21 eventos
 de Google, 2 tareas de Todoist y retorno preparado en 3.3 s. La consulta del
 snapshot duro 2.6 s, por encima del plazo anterior de 1.5 s.

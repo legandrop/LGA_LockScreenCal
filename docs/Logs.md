@@ -75,7 +75,8 @@ accion. Ejecutarlo dentro de la app requiere abrir Scriptable; el script no
 puede cambiar por si solo el modo de ejecucion de la accion de Atajos.
 La prueba manual en el iPhone del 12/10 mostro la imagen y envio sus registros.
 Lega luego confirmo que el Atajo funciono sin abrir la app, pero apagar tambien
-Mostrar al ejecutar volvio a fallar. La ejecucion silenciosa sigue pendiente.
+Mostrar al ejecutar volvio a fallar en v0.20. v0.22 recupero datos y funciono
+silenciosa; v0.23 fallo al repetir en la accion Base64 de Atajos.
 
 Para conectar la alternativa, buscar Scriptable en Atajos y elegir la accion
 para ejecutar un script guardado, `Run Script`. Seleccionar `LGA_LockScreenCal_App`,
@@ -141,7 +142,38 @@ el propietario termina abruptamente. No incluye datos personales.
 directamente en el historial. `tools/check-bursts.cjs` ejecuta cargador y programa
 completos con almacenamiento compartido. Las marcas no son exclusiones atomicas
 entre procesos reales. Atajos sigue ejecutando sus acciones de Base64 y fondo
-con el PNG devuelto; no hace falta agregar controles manuales en la interfaz.
+con el PNG devuelto en modo `atajo`; no hace falta agregar controles manuales
+para proteger las rafagas. v0.24 verifica tambien la longitud al recuperar el PNG:
+una copia incompleta no se reutiliza, aunque conserve el prefijo correcto.
+
+## Entrega como archivo PNG (v0.24)
+
+[Scriptable documenta](https://docs.scriptable.app/script/) que la salida puede
+ser la ruta de un archivo almacenado en iCloud. El parametro `archivo` del
+cargador guardado elige esta via; `atajo` conserva la salida anterior en base64.
+El archivo se escribe como Data comprimida, sin convertirlo en Image en el
+proceso de Scriptable. Atajos recibe el archivo y no necesita Decodificar Base64.
+
+Primero ejecutar el Atajo existente una vez para que descargue la version y
+actualice el cargador guardado; esperar cinco minutos desde la ultima descarga
+si hay cache reciente. Aunque la accion Base64 posterior falle, la instalacion
+ocurre antes. Luego cambiar la accion Texto de `atajo` a `archivo`, eliminar
+Decodificar y seleccionar el Output de Run como imagen de Establecer fondo.
+Run In App, Always Run in App y Mostrar al ejecutar permanecen apagados.
+No se modifica codigo ni se vuelve a configurar credenciales.
+
+Se necesita iCloud habilitado para Scriptable. Los PNG quedan en su carpeta
+`LockScreenCal-output`, dentro del iCloud del usuario, y contienen los mismos
+eventos visibles en el fondo. No se envian al servidor de registros. Cada
+corrida obtiene una ruta propia; se retiran solo los archivos generados de mas
+de una hora durante otra entrega. `output_prepared.count=1` indica archivo
+preparado y `output_call.count=1` la llamada al setter nativo con esa ruta.
+No se registra la ruta. Ninguna de esas etapas confirma que iOS aplico el fondo.
+
+Probado con el cargador y programa completos: 18 invocaciones, incluyendo
+solapamientos, archivos distintos, mismos bytes PNG, una consulta/dibujo por
+minuto, fallos de escritura y retencion sin borrar archivos ajenos. Falta
+confirmar esta nueva entrega en el iPhone.
 
 ## Alcance del diagnostico
 

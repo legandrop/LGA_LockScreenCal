@@ -225,6 +225,11 @@ probado con registros sintéticos y la recepción ya exige clave sin necesitar
 iniciar sesión. Ya se recuperaron registros completos del teléfono, con esperas
 de Google de decenas de minutos. La estabilidad del Atajo sigue sin confirmarse.
 Ver [Registros y mantenimiento remoto](docs/Logs.md).
+El cargador guardado administrado ofrece desde v0.24 una salida como archivo PNG
+en iCloud, para omitir la conversion Base64 de Atajos. Se elige con el parametro
+`archivo`; requiere actualizar primero el cargador y conectar su Output
+directamente a Establecer fondo. Los pasos y requisitos estan en
+[Entrega como archivo PNG](docs/Logs.md#entrega-como-archivo-png-v024).
 La consulta de Google espera hasta 12 s con un temporizador antes de continuar
 con los calendarios del iPhone; iOS puede suspender ese temporizador.
 

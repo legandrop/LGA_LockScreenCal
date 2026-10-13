@@ -237,6 +237,12 @@ async function readDiagnostic(files) {
   await check({ files: activeFiles, now: epoch + 120000 });
   activeFiles.set("/cache/LockScreenCal-output.txt", "archivo roto");
   await check({ files: activeFiles, now: epoch + 120001 });
+  activeFiles.set("/cache/LockScreenCal-output.txt", png.slice(0, 20));
+  await check({ files: activeFiles, now: epoch + 120002 });
+  const legacyInfo = JSON.parse(activeFiles.get("/cache/LockScreenCal-output.json"));
+  delete legacyInfo.base64Chars;
+  activeFiles.set("/cache/LockScreenCal-output.json", JSON.stringify(legacyInfo));
+  await check({ files: activeFiles, now: epoch + 120003 });
   await check({ storageFails: true });
   // El simulador no ofrece loadJSON: fuerza fallos del puente y del envio.
   // Igual debe entregar el PNG; los logs quedan pendientes para otra corrida.

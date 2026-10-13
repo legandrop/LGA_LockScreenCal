@@ -4,15 +4,17 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const source=fs.readFileSync(path.join(__dirname,'../LockScreenCal.js'),'utf8');
 const app=source.split('// ==== APP RUNNER START ====')[1].split('// ==== APP RUNNER END ====')[0];
 const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+const fileOutput=process.argv.includes('--file'),delivered=new Set();
 const epoch=Date.now(),files=new Map(),keys=new Map();let now=epoch,renders=0,requests=0,downloads=0,completions=0,outputs=0;
 let renderHold=null,renderReached=null,codeHold=null,codeReached=null;
 files.set('/lib/LockScreenCal.js',source);files.set('/lib/LockScreenCal-code-at.txt',String(now));
 const settings={logRemote:true,logCollector:'https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs',googleUrl:'https://example.test?token=fixture',todoistToken:'FIXTURE'};
 const manager=kind=>({libraryDirectory:()=>'/lib',documentsDirectory:()=>'/'+kind+'/docs',joinPath:(a,b)=>a+'/'+b,
- fileExists:p=>files.has(p),readString:p=>files.get(p),writeString:(p,v)=>files.set(p,v),remove:p=>files.delete(p),createDirectory(){},listContents:p=>[...files.keys()].filter(k=>k.startsWith(p+'/')).map(k=>k.slice(p.length+1))});
+ fileExists:p=>files.has(p),readString:p=>files.get(p),writeString:(p,v)=>files.set(p,v),write:(p,v)=>files.set(p,v),remove:p=>files.delete(p),createDirectory(){},modificationDate:()=>new Date(now),listContents:p=>[...files.keys()].filter(k=>k.startsWith(p+'/')).map(k=>k.slice(p.length+1))});
 async function run(){
  class Clock extends Date {constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}}
- const context=vm.createContext({Date:Clock,console:{log(){},error(){}},config:{runsInApp:false,runsWithSiri:true},args:{shortcutParameter:'atajo'},
+ const context=vm.createContext({Date:Clock,console:{log(){},error(){}},config:{runsInApp:false,runsWithSiri:true},args:{shortcutParameter:fileOutput?'archivo':'atajo'},
+  Data:{fromBase64String:text=>Buffer.from(text,'base64')},
   FileManager:{local:()=>manager('local'),iCloud:()=>manager('cloud')},Keychain:{contains:k=>keys.has(k),get:k=>keys.get(k),set:(k,v)=>keys.set(k,v)},
   Device:{screenResolution:()=>({width:1179,height:2556})},Calendar:{forEvents:async()=>[]},
   Timer:{schedule(ms,repeat,callback){const timer=setTimeout(callback,ms);return {invalidate(){clearTimeout(timer);}};}},
@@ -22,7 +24,11 @@ async function run(){
    assert.equal(this.url,'https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/calendar');requests++;
    return {version:1,google:{at:now,data:{events:[],calendars:[]}},todoist:{at:now,data:{me:{id:'fixture'},projects:[],tasks:[]}}};
   }},
-  Script:{setShortcutOutput(value){assert.equal(value,png);outputs++;},complete(){completions++;}},
+  Script:{setShortcutOutput(value){
+   if(fileOutput){assert.ok(value.startsWith('/cloud/docs/LockScreenCal-output/'));assert.equal(files.get(value).toString('base64'),png);assert.ok(!delivered.has(value),'Las corridas solapadas no deben pisar el archivo de otra salida');delivered.add(value);}
+   else assert.equal(value,png);
+   outputs++;
+  },complete(){completions++;}},
  });
  vm.runInContext(app,context);context.prepareManagedApp(settings);await context.managedAppRunner();
 }
