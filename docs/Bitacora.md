@@ -7,10 +7,11 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 
 ## Resumen
 
-**v0.21 entrego un fondo silenciosamente, pero perdio Google y Todoist por
-timeout del servicio preparado. v0.22 debe validar recuperacion de ambas fuentes.**
-Lega confirmo que el Atajo funciono, con perdida de colores y checkboxes.
-No dar una salida con datos degradados por solucion completa.
+**Lega confirmo que v0.22 funciono bien, silenciosa y con colores/tareas
+recuperados. v0.23 refuerza la proteccion de rafagas; falta observar uso habitual.**
+El registro real de las 21:15:02 (`mv5xiw1k-xpueujnbsnp`) confirma 21 eventos
+de Google, 2 tareas de Todoist y retorno preparado en 3.3 s. La consulta del
+snapshot duro 2.6 s, por encima del plazo anterior de 1.5 s.
 Los registros del Atajo inline anterior recuperados el 12/10 muestran una consulta a Google de 45 min 31 s
 en v0.16 y otra de 61 min 4 s en v0.18. Esta ultima tambien tuvo un timeout de
 Todoist de 87.7 s; luego dibujo el PNG y preparo el retorno a las 19:21 locales,
@@ -149,16 +150,36 @@ de esperar; el limite de una hora no se extiende. Verificado con una conexion
 simulada de 2 s usando el temporizador real y sin copia previa. Una prueba del
 programa completo comprueba que se conserva el color individual de Google,
 task=true para el checkbox y el color por etiqueta de Todoist. El dibujo no
-cambio; se mantiene la ejecucion silenciosa. Falta validar esta version en iOS.
+cambio; se mantiene la ejecucion silenciosa. Lega confirmo su funcionamiento y
+recuperacion de colores/tareas en el iPhone; ver el registro citado arriba.
+
+**v0.23 protege tambien la descarga del cargador en una rafaga.** Se conserva
+el intervalo de 60 s para reutilizar PNG y la marca de actualizacion activa
+de 120 s. La caché de codigo dura cinco minutos; ahora una marca de refresco
+de cinco segundos, escrita antes del primer await, hace que las otras llegadas
+usen el codigo disponible en lugar de repetir la descarga. Solo su propietario
+libera la marca; una marca abandonada vence. Durante una actualizacion de version,
+una corrida que encuentra otra activa puede devolver el PNG anterior si los
+ajustes coinciden, evitando reemplazarlo por un aviso de espera.
+
+Verificado con el cargador guardado y programa reales en 18 invocaciones
+simuladas: tres consultas/dibujos para tres ventanas de tiempo; cinco llegadas
+durante un dibujo no crean otro WebView; seis llegadas con codigo vencido hacen
+una sola descarga. Se probaron liberacion, marca vencida, fallos de descarga y
+PNG de version anterior sin mezclar ajustes. Las marcas de FileManager son
+cooperativas: el simulador no prueba atomicidad entre procesos reales de iOS.
+El Atajo sigue disparandose y aplicando el PNG devuelto; estas protecciones
+limitan descargas, consultas y dibujos, no detienen la accion nativa de fondo.
 
 ## Pendiente
 
-0. **Validar v0.22 con ambas fuentes en el telefono.** Mantener Run del script
+0. **Probar una rafaga corta con el uso normal.** Mantener Run del script
    `LGA_LockScreenCal_App`, parametro conectado a Texto `atajo`, y Output de ese
    Run conectado a Decodificar. Run In App, Always Run in App y Mostrar al
-   ejecutar apagados. La fuente v0.22
-   llega sola y prepara el cargador nuevo en disco. Consultar D1 despues de una
-   corrida; no pedir codigo, tokens ni exports. No prometer
+   ejecutar apagados. v0.23 llega sola y prepara el cargador nuevo en disco.
+   Sugerir 3-5 entradas/salidas de WhatsApp; consultar D1 para comprobar reuse_recent
+   o reuse_active sin nuevos render_start en esa ventana. No pedir codigo, tokens
+   ni exports. La estabilidad sostenida aun no se confirmo. No prometer
    estabilidad por una sola corrida ni regresar a la accion inline.
    Si falla, diagnosticar esa
    ruta en extension; abrir Scriptable permanentemente no satisface el objetivo.

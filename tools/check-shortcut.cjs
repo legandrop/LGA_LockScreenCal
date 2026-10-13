@@ -222,6 +222,15 @@ async function readDiagnostic(files) {
   await pending;
   assert.equal(activeFiles.has("/cache/LockScreenCal-active.json"), false);
 
+  // Durante una actualizacion de version se conserva la imagen anterior solo
+  // si los ajustes coinciden: una rafaga no debe poner un aviso sobre ese fondo.
+  const olderInfo=JSON.parse(activeFiles.get("/cache/LockScreenCal-output.json"));
+  olderInfo.key="0.01:"+olderInfo.key.split(":")[1];
+  activeFiles.set("/cache/LockScreenCal-output.json",JSON.stringify(olderInfo));
+  activeFiles.set("/cache/LockScreenCal-active.json",JSON.stringify({id:"updating-version",startedAt:epoch+65000}));
+  await check({files:activeFiles,now:epoch+65001,expectRender:false});
+  await check({files:activeFiles,now:epoch+65002,expectRender:false,busyWithoutCache:true,overrides:{onlyCalendars:["Changed"]}});
+  activeFiles.delete("/cache/LockScreenCal-active.json");
   // Una marca dejada por un proceso terminado no bloquea el calendario para
   // siempre; tampoco un archivo roto ni un fallo de escritura local.
   activeFiles.set("/cache/LockScreenCal-active.json", JSON.stringify({ id: "interrumpida", startedAt: epoch }));

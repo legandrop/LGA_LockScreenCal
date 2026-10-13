@@ -83,6 +83,12 @@ ese fondo para evitar repetir consultas y dibujos. Si todavía no se generó uno
 entrega un aviso para esperar dos minutos y probar una sola vez. La marca de
 ejecución activa vence a los dos minutos si iOS interrumpe el proceso.
 
+v0.23 protege también la descarga del cargador guardado: si ya hay un refresco
+de código en curso, las otras llegadas usan la copia disponible. Durante una
+actualización puede reutilizar el PNG de la versión anterior si hay otra corrida
+activa y los ajustes coinciden. El Atajo sigue disparándose y aplicando ese PNG;
+la protección reduce las descargas, consultas y dibujos repetidos.
+
 ### 4. Que se actualice solo
 
 iOS no deja compartir automatizaciones: cada uno las arma una vez. En **Atajos** →
@@ -230,7 +236,8 @@ Google y Todoist preparados en el servicio, con la autorización del usuario,
 para reducir la espera de la ejecución silenciosa. Esa versión pudo entregar
 el fondo, pero el plazo de datos resultó demasiado corto y usó solo calendarios
 del iPhone. v0.22 amplía ese plazo y conserva las fuentes recientes guardadas;
-falta confirmar en el teléfono que vuelvan los colores y las tareas de Todoist.
+el usuario confirmó que recuperó colores y tareas en una ejecución silenciosa.
+v0.23 refuerza las ráfagas; falta observar estabilidad con uso habitual.
 Ver la documentación de registros antes de cambiar las acciones.
 
 ### Actualizar un cargador anterior a v0.14
@@ -308,6 +315,7 @@ node tools/check-logs.cjs       # historial, reintentos, autenticación y privac
 node tools/check-deadlines.cjs  # plazos, respuestas tardías, limpieza y SHA-256
 node tools/check-app-runner.cjs # script guardado, Keychain, caché y salida nativa
 node tools/check-managed-data.cjs # datos preparados, fallback y vencimiento
+node tools/check-bursts.cjs     # ráfagas con cargador y programa completos
 npm i playwright && npx playwright install chromium
 node tools/preview.cjs          # -> preview/preview.png
 ```

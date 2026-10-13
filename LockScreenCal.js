@@ -76,7 +76,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.22";
+const VERSION = "0.23";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -268,7 +268,7 @@ async function managedAppRunner() {
   const settings = JSON.parse(Keychain.get(settingsKey));
   const fm = FileManager.local();
   const cache = fm.joinPath(fm.libraryDirectory(), "LockScreenCal.js");
-  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.22", startedAt: Date.now(), events: [], revision: 0 };
+  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.23", startedAt: Date.now(), events: [], revision: 0 };
   const context = { record, skipPreview: true, fromShortcut: !!config.runsWithSiri || args.shortcutParameter === "atajo" };
   let source, output;
   const attachTrace = code => {
@@ -283,22 +283,32 @@ async function managedAppRunner() {
   context.trace?.event("download_start");
   try {
     const stamp = fm.joinPath(fm.libraryDirectory(), "LockScreenCal-code-at.txt");
+    const refreshFile = fm.joinPath(fm.libraryDirectory(), "LockScreenCal-code-refresh.json");
     let age = Infinity;
     try { age = Date.now() - Number(fm.readString(stamp)); } catch (_) {}
-    if (source && age >= 0 && age < 300000) context.trace?.event("download_cache");
+    let refreshing = false;
+    try { const started = JSON.parse(fm.readString(refreshFile)).at; const elapsed = Date.now() - started; refreshing = Number.isFinite(elapsed) && elapsed >= 0 && elapsed < 5000; } catch (_) {}
+    if (source && ((age >= 0 && age < 300000) || refreshing)) context.trace?.event("download_cache");
     else {
-      const request = new Request("https://raw.githubusercontent.com/legandrop/LGA_LockScreenCal/main/LockScreenCal.js?app=" + Date.now());
-      request.timeoutInterval = source ? 1 : 3;
-      let timer;
-      // En segundo plano no se espera una descarga lenta si hay copia valida.
-      const limit = new Promise((_, reject) => { timer = Timer.schedule(source ? 1000 : 3000, false, () => reject(new Error("timeout"))); });
-      const downloaded = await Promise.race([request.loadString(), limit]).finally(() => timer.invalidate());
-      if (request.response?.statusCode !== 200 || !downloaded.includes("drawCalendar")) throw new Error("HTTP " + request.response?.statusCode);
-      new (Object.getPrototypeOf(async function () {}).constructor)("OVERRIDES", "Script", "RUN_CONTEXT", downloaded);
-      source = downloaded;
-      try { fm.writeString(cache, source); fm.writeString(stamp, String(Date.now())); } catch (_) {}
-      attachTrace(source);
-      context.trace?.event("download_ok");
+      // Se marca antes del primer await: las llegadas de la misma rafaga usan
+      // el codigo disponible. La marca vence si iOS termina al propietario.
+      try { fm.writeString(refreshFile, JSON.stringify({ id: record.id, at: Date.now() })); } catch (_) {}
+      try {
+        const request = new Request("https://raw.githubusercontent.com/legandrop/LGA_LockScreenCal/main/LockScreenCal.js?app=" + Date.now());
+        request.timeoutInterval = source ? 1 : 3;
+        let timer;
+        // En segundo plano no se espera una descarga lenta si hay copia valida.
+        const limit = new Promise((_, reject) => { timer = Timer.schedule(source ? 1000 : 3000, false, () => reject(new Error("timeout"))); });
+        const downloaded = await Promise.race([request.loadString(), limit]).finally(() => timer.invalidate());
+        if (request.response?.statusCode !== 200 || !downloaded.includes("drawCalendar")) throw new Error("HTTP " + request.response?.statusCode);
+        new (Object.getPrototypeOf(async function () {}).constructor)("OVERRIDES", "Script", "RUN_CONTEXT", downloaded);
+        source = downloaded;
+        try { fm.writeString(cache, source); fm.writeString(stamp, String(Date.now())); } catch (_) {}
+        attachTrace(source);
+        context.trace?.event("download_ok");
+      } finally {
+        try { if (JSON.parse(fm.readString(refreshFile)).id === record.id) fm.remove(refreshFile); } catch (_) {}
+      }
     }
   } catch (error) {
     context.trace?.error("download_error", error);
@@ -394,9 +404,12 @@ function runStore(trace) {
     if (stages[name]) trace.event(stages[name]);
     console.log("v" + VERSION + " · " + name + " · " + ((state.updatedAt - startedAt) / 1000).toFixed(1) + " s");
   };
-  const cached = () => {
+  const cached = (allowPreviousVersion = false) => {
     const info = json("output.json");
-    if (!info || info.key !== key) return null;
+    // Mientras otra version actualiza, se puede devolver su ultimo PNG si los
+    // ajustes coinciden. Una rafaga no debe reemplazarlo por un aviso de espera.
+    if (!info || typeof info.key !== "string" || (info.key !== key &&
+        !(allowPreviousVersion && info.key.split(":")[1] === String(hash >>> 0)))) return null;
     const b64 = read("output.txt");
     return typeof b64 === "string" && b64.startsWith("iVBORw0KGgo") ? { b64, at: info.at } : null;
   };
@@ -868,7 +881,7 @@ async function main() {
   const store = runStore(trace);
   let b64;
   const active = store.active();
-  const previous = store.cached();
+  const previous = store.cached(active);
   const age = previous && Date.now() - previous.at;
   // Dentro de la app se puede probar de nuevo sin esperar el minuto. Una
   // corrida que sigue activa se respeta tambien ahi para no sumar otro WebView.

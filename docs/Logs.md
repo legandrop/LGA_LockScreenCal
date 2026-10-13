@@ -125,7 +125,23 @@ v0.22 espera hasta 3.5 s por el snapshot, sin volver a consultar esas APIs en
 el telefono. Combina respuestas parciales con las fuentes locales recientes;
 una copia mas vieja no pisa una nueva. El vencimiento se revalida al usar datos.
 Las pruebas incluyen una respuesta de 2 s y la conservacion de colores y
-marca task que dibuja el checkbox. Falta la comprobacion de v0.22 en el iPhone.
+marca task que dibuja el checkbox. Lega confirmo que v0.22 recupero ambos en una
+ejecucion silenciosa; el registro recibio 21 eventos de Google y 2 tareas.
+
+## Rafagas de automatizaciones
+
+Una actualizacion completada se reutiliza durante 60 s; si hay otra en curso
+se devuelve la ultima imagen compatible. La marca activa vence a los 120 s.
+Desde v0.23 se permite devolver un PNG anterior durante una actualizacion de
+version solo si los ajustes coinciden. Una marca separada protege el refresco
+de codigo por cinco segundos: otras llegadas usan su copia; la marca vence si
+el propietario termina abruptamente. No incluye datos personales.
+
+`reuse_recent`, `reuse_active` y `download_cache` permiten verificar las rafagas
+directamente en el historial. `tools/check-bursts.cjs` ejecuta cargador y programa
+completos con almacenamiento compartido. Las marcas no son exclusiones atomicas
+entre procesos reales. Atajos sigue ejecutando sus acciones de Base64 y fondo
+con el PNG devuelto; no hace falta agregar controles manuales en la interfaz.
 
 ## Alcance del diagnostico
 

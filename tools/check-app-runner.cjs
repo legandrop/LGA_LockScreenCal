@@ -8,12 +8,13 @@ const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 const fixture = { logCollector: 'https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs',
   googleUrl: 'SECRET_GOOGLE', todoistToken: 'SECRET_TODOIST', keywords: { SECRET_PROJECT: '#000' }, logRemote: false };
 const good = 'const VERSION = "0.20"; function drawCalendar() {}\nScript.setShortcutOutput(' + JSON.stringify(png) + '); Script.complete(); await Promise.resolve(); settled = true;';
-async function check({ offline = false, invalidDownload = false, malformedDownload = false, fromShortcut = true, missingOutput = false, freshCodeCached = false, stalledDownload = false } = {}) {
+async function check({ offline = false, invalidDownload = false, malformedDownload = false, fromShortcut = true, missingOutput = false, freshCodeCached = false, stalledDownload = false, refreshingCode = false, expiredRefresh = false } = {}) {
   const files = new Map(); const keys = new Map(); const calls = []; let downloads = 0;
+  if (refreshingCode || expiredRefresh) files.set("/lib/LockScreenCal-code-refresh.json", JSON.stringify({id:"other",at:Date.now()-(expiredRefresh?5000:0)}));
   if (freshCodeCached) files.set("/lib/LockScreenCal-code-at.txt", String(Date.now()));
   files.set('/lib/LockScreenCal.js', missingOutput ? 'function drawCalendar() {}' : good);
   const manager = kind => ({ libraryDirectory: () => '/lib', documentsDirectory: () => '/' + kind + '/documents',
-    joinPath: (a,b) => a + '/' + b, fileExists: p => files.has(p), readString: p => files.get(p), writeString: (p,v) => files.set(p,v) });
+    joinPath: (a,b) => a + '/' + b, fileExists: p => files.has(p), readString: p => files.get(p), writeString: (p,v) => files.set(p,v), remove: p => files.delete(p) });
   const context = vm.createContext({ console, config: { runsInApp: true, runsWithSiri: false },
     Timer: { schedule(ms,repeat,callback) { const timer = setTimeout(callback,ms); return { invalidate() { clearTimeout(timer); } }; } },
     args: { shortcutParameter: fromShortcut ? 'atajo' : null },
@@ -45,12 +46,15 @@ async function check({ offline = false, invalidDownload = false, malformedDownlo
   } else {
     await vm.runInContext('(async()=>{'+generated+'})()',context);
     assert.deepEqual(calls,fromShortcut?['output','complete']:['output','preview','complete']);
-    if (freshCodeCached) assert.equal(downloads,0,'El codigo reciente no debe volver a descargarse');
+    if (freshCodeCached || refreshingCode) assert.equal(downloads,0,'El codigo reciente no debe volver a descargarse');
+    if (expiredRefresh) assert.equal(downloads,1);
+    if (!refreshingCode) assert.equal(files.has("/lib/LockScreenCal-code-refresh.json"),false,"La marca de descarga debe liberarse despues de exito o fallo");
     if(invalidDownload||malformedDownload) assert.equal(files.get('/lib/LockScreenCal.js'),good,'Una descarga invalida no debe reemplazar la copia buena');
   }
 }
 (async()=>{
   await check(); await check({fromShortcut:false}); await check({offline:true});
+  await check({refreshingCode:true}); await check({expiredRefresh:true});
   await check({freshCodeCached:true}); await check({stalledDownload:true});
   await check({invalidDownload:true}); await check({malformedDownload:true}); await check({missingOutput:true});
   console.log('OK: preparacion privada, Keychain, archivos personales, cache, salida nativa y complete al final');
