@@ -37,7 +37,8 @@ La clave de escritura se deriva localmente con SHA-256 y un prefijo propio del
 servicio a partir del token de Google. El receptor recibe esa clave derivada,
 nunca el token original. Solo acepta el usuario configurado en el gestor de
 secretos; no es un servicio abierto para otros usuarios del repo. El token de
-Todoist tampoco se transmite. La clave de escritura no concede lectura.
+Todoist tampoco se transmite en la telemetria; en el modo de datos preparados
+se configura aparte como secreto del servidor, con autorizacion del usuario. La clave de escritura no concede lectura.
 
 Los lotes tienen hasta cinco corridas. Desde v0.18 se prioriza la corrida actual,
 se intenta enviar su inicio antes de consultar calendarios, un punto antes del
@@ -59,6 +60,9 @@ el addon [google/Logs.gs](../google/Logs.gs) desplegado junto al puente y conser
 50 corridas remotas. No forma parte de la nueva instalacion de Lega.
 
 ## Script guardado y ejecucion en segundo plano
+
+Para los pasos actuales del Atajo, ver [Instalacion administrada](Instalacion-administrada.md).
+Para otra cuenta, ver [Compartir](Compartir.md): el servicio actual no ofrece alta automatica.
 
 Desde v0.20 el programa prepara automaticamente `LGA_LockScreenCal_App` cuando
 se usa el receptor administrado. El archivo guardado contiene un cargador

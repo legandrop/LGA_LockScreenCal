@@ -50,8 +50,8 @@ cola vieja. Un corte antes de ejecutar la fabrica
 remota de telemetria queda fuera de su alcance. La corrida real v0.19 de las
 19:21 se recupero al ejecutar de nuevo: timeout de Google tras 21 min 42 s.
 
-v0.20 prepara un script generico guardado en Scriptable para probar la ejecucion
-en primer plano. `script_start.count` indica las copias locales/iCloud preparadas;
+v0.20 prepara un script generico guardado en Scriptable, luego utilizado
+en segundo plano. La ejecucion en primer plano se uso solo para diagnostico. `script_start.count` indica las copias locales/iCloud preparadas;
 no transmite sus ajustes, que quedan en Keychain del telefono. La prueba
 `foreground-probe-...` de nube verifica Google, Todoist y receptor con dibujo
 simulado; no demuestra que el Atajo funcione en iOS.
@@ -66,8 +66,10 @@ anterior tuvo timeout de Google y preparo el fondo con fallback del iPhone.
 Falta observar estabilidad repetida; D1 no confirma por si solo el fondo aplicado
 ni registra explicitamente el modo de ejecucion.
 
-Lega aclaro despues que Mostrar al ejecutar apagado vuelve a fallar; aun no esta
-validada la ejecucion silenciosa. v0.21 prepara datos fuera del telefono.
+En v0.20 Mostrar al ejecutar apagado volvio a fallar. v0.21 preparo datos fuera
+del telefono; v0.22 luego funciono silenciosa con colores y tareas, confirmado
+por Lega. v0.23 tuvo otro fallo de Base64 en una repeticion. v0.24 permite
+entrega como archivo PNG; su validacion real sigue en Bitacora.md.
 Ambas fuentes reales se calentaron con POST autenticado a /api/calendar; los GET
 reales devolvieron 200 en 152-322 ms y sin clave devolvieron 401. Un registro
 `background-probe-...` prueba la fabrica real con dibujo simulado; no es un iPhone.
@@ -102,6 +104,16 @@ se pasan por stdin sin eco; nunca se guardan. La lectura de D1 usa herramientas
 nativas autenticadas, independiente del acceso web.
 
 Las mejoras del calendario y de su telemetria se publican en `main` de este repo.
-El cargador v0.15 instalado las descarga; no requiere nuevos pegados para cambios
-que quedan dentro de ese contrato. Las acciones propias de Atajos y permisos de
+El cargador inline v0.15 las descarga en cada corrida; el guardado reutiliza
+codigo por cinco minutos y actualiza su archivo para la siguiente invocacion.
+No requieren nuevos pegados para cambios dentro de esos contratos. Las acciones propias de Atajos y permisos de
 iOS no se pueden editar directamente desde este servicio.
+
+## Alcance de la cuenta y documentación para compartir
+
+El despliegue actual tiene un juego de claves y una copia por fuente, sin columna
+ni autorización por usuario. No ofrece alta de amigos. Compartir las claves
+permitiría acceder a los datos de la cuenta aprovisionada; no provisiona otra.
+Para una implementación equivalente se necesita un servicio aislado o introducir
+separación por usuario, y adaptar el reconocimiento de la URL en el cliente.
+Ver [Compartir](Compartir.md) e [Instalación administrada](Instalacion-administrada.md).

@@ -34,8 +34,9 @@ fondo. Lo usa Lega y la idea es pasárselo a su familia y amigos.
    sin coautores ni footers de atribución. Verificar `git config user.email` antes de
    commitear: una sesión nueva en la nube arranca con la identidad de Claude.
 4. **Commit y push al terminar cada cambio**, a `main`. El Atajo de todos baja
-   `LockScreenCal.js` de `main` en cada corrida (ver `loader.js`): **lo que se pushea
-   a `main` le llega al instante a todos los que lo tienen instalado.** Un error de
+   `LockScreenCal.js` de `main` al refrescar: cada corrida del inline, o al vencer
+   los cinco minutos de caché del guardado. **Lo publicado afecta a todos los
+   que usan esa rama.** Un error de
    sintaxis rompe el fondo de todos, así que antes de pushear:
    `node --input-type=module --check < LockScreenCal.js` y la vista previa
    (`node tools/preview.cjs`).
@@ -50,9 +51,9 @@ fondo. Lo usa Lega y la idea es pasárselo a su familia y amigos.
 |---|---|
 | `LockScreenCal.js` | Lee eventos (calendarios del iPhone o el puente de Google), dibuja en un `<canvas>` dentro de un `WebView`, y devuelve el PNG **en base64** con `Script.setShortcutOutput` (Scriptable no acepta una imagen como salida). Todo lo configurable está en `CONFIG`; el cargador lo pisa con `OVERRIDES`. |
 | `loader.js` | Va **adentro del Atajo** (acción "Run Inline Script" de Scriptable). Baja y cachea `LockScreenCal.js`. Desde v0.14 le pasa un `Script` que captura el PNG y evita completar la acción dentro de la función descargada; espera su final y devuelve la salida con `return` desde el cargador. El código pegado en Atajos requiere actualizarse una vez para usar esa vía. |
-| `managedAppRunner` / `prepareManagedApp` en `LockScreenCal.js` | Script genérico guardado; ajustes en Keychain. Setter nativo exterior y complete al final. v0.21 cachea código y entrega antes de enviar logs. Silenciosa aún pendiente en iOS. Ver `tools/check-app-runner.cjs`. |
+| `managedAppRunner` / `prepareManagedApp` en `LockScreenCal.js` | Script genérico guardado; ajustes en Keychain. Setter nativo exterior y complete al final. v0.21 cachea código y entrega antes de enviar logs. v0.22 silenciosa confirmada; v0.24 admite PNG por archivo de iCloud, pendiente de validación real. Ver `tools/check-app-runner.cjs`. |
 | `loadManagedData` en `LockScreenCal.js` | Desde v0.21 obtiene Google/Todoist ya preparados en el servicio, con autorización expresa. Clave separada, copia local y vencimiento; iPhone sigue local. Ver `tools/check-managed-data.cjs` y `docs/Logs.md`. |
-| `google/Code.gs` | Puente opcional (Google Apps Script) para tener el color de cada **evento** de Google, que el iPhone no expone. Sin probar. |
+| `google/Code.gs` | Puente opcional (Google Apps Script) para tener el color de cada **evento** de Google, que el iPhone no expone. El puente de la cuenta actual respondió en pruebas reales; otra cuenta requiere su despliegue. |
 | `google/Logs.gs` | Se agrega al puente desplegado: `doPost` autenticado con su `TOKEN`, retención de 50 corridas en ScriptProperties y lectura privada. Publicar el repo no actualiza esa implementación. |
 | `tools/preview.cjs` | Vista previa en la compu: extrae `drawCalendar` entre las marcas `RENDER START/END` y lo corre en Chromium con datos inventados. |
 | `docs/preview.png` | La imagen del README. Regenerarla si cambia el dibujo. |
@@ -65,3 +66,8 @@ El historial técnico y el receptor administrado se explican en `docs/Logs.md` y
 crudos de excepciones ni datos de eventos. Después de cambios en el cargador,
 mantener `tools/loader-body.js` igual al bloque desde `const URL =` de `loader.js`
 y ejecutar `node tools/check-shortcut.cjs` y `node tools/check-logs.cjs`.
+
+Para compartir con otra persona, leer `docs/Compartir.md` y
+`docs/Instalacion-administrada.md`. No indicar duplicar el Atajo administrado
+y borrar MI_CONFIG: ya no tiene ese bloque, y el script/Keychain no se exportan.
+El servicio actual es de una sola cuenta y no ofrece alta automática.

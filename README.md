@@ -14,9 +14,11 @@ dibuja el fondo de pantalla con tus eventos.
 - Cada evento es una caja de su color, con el texto en negro o blanco según qué se
   lea mejor. Las tareas llevan un circulito adelante, como en Todoist.
 - Las palabras que elijas (por ejemplo, nombres de proyectos) salen en negrita.
-- Todo corre en tu teléfono. Lo único que sale a internet es lo opcional: el puente
-  con tu propia cuenta de Google y la API de Todoist.
-- Se actualiza solo: cada mejora del código llega sin reinstalar nada.
+- El dibujo y los calendarios del iPhone se procesan en el teléfono. En la
+  instalación independiente, Google y Todoist se consultan desde ahí; en la
+  implementación administrada se preparan en un servicio con acceso protegido.
+- El código se actualiza desde GitHub sin reinstalarlo. El cargador guardado
+  reutiliza su copia durante cinco minutos.
 
 **¿Por qué un fondo y no un widget?** En el lock screen, iOS muestra los widgets en
 blanco y negro. La única forma de tener colores es el fondo de pantalla (lo mismo
@@ -24,7 +26,20 @@ hacen apps como Ink).
 
 ---
 
-## Instalar
+## Elegir la instalación
+
+| Qué querés usar | Guía |
+|---|---|
+| Instalarlo en otro iPhone con los calendarios de esa persona | [Instalación independiente](#instalar-la-versión-independiente), abajo |
+| Mantener la implementación administrada existente, con datos preparados y salida PNG | [Instalación administrada](docs/Instalacion-administrada.md) |
+| Pasárselo a un amigo sin tus cuentas ni ajustes | [Guía para compartir](docs/Compartir.md) |
+
+**El servicio administrado actual está configurado para una sola cuenta.**
+No hay alta automática de amigos ni un enlace de Atajo listo para importar.
+El repo ofrece el cargador limpio y los pasos manuales. Copiar el Atajo actual
+no instala el script guardado, el Keychain ni el servicio en otro teléfono.
+
+## Instalar la versión independiente
 
 Los nombres de botones de esta guía son los de un iPhone en castellano con iOS 26.
 Si en tu versión algo se llama distinto, buscá la palabra que se indica.
@@ -40,10 +55,7 @@ Si en tu versión algo se llama distinto, buscá la palabra que se indica.
 
 ### 2. El Atajo
 
-**Con link (lo más fácil):** abrí **LINK_DEL_ATAJO** → **Agregar atajo**. Después
-seguí desde el punto 4 de abajo ("Elegir el fondo").
-
-**A mano (si no tenés el link):** en la app **Atajos** → pestaña **Atajos** → **+**.
+En la app **Atajos** → pestaña **Atajos** → **+**.
 Cada acción se agrega escribiendo en la barra **Buscar acciones**:
 
 1. Escribí **Scriptable** y elegí **Run Inline Script**. En el atajo se ve como
@@ -108,8 +120,10 @@ pestaña **Automatización** → **+**:
 
 ## Ajustes
 
-Todo se configura en el bloque `MI_CONFIG`, al principio del código de la primera
-acción del Atajo. Lo que no pongas usa el valor por defecto. Ejemplo:
+En la instalación independiente se configura el bloque `MI_CONFIG`, al principio
+del código de la primera acción del Atajo. Lo que no pongas usa el valor por
+defecto. En la implementación administrada los ajustes quedan en Keychain;
+el Atajo final no contiene ese bloque (ver su [guía](docs/Instalacion-administrada.md)). Ejemplo:
 
 ```js
 const MI_CONFIG = {
@@ -131,7 +145,8 @@ const MI_CONFIG = {
 | `showUpdated` | Mostrar `act. HH:MM` |
 | `googleUrl` | Color de cada evento de Google (ver abajo) |
 | `logRemote` | Activa el envío de historial técnico. Por defecto `false`; ver [registros](docs/Logs.md) |
-| `logCollector` | Receptor administrado opcional; vacío conserva el puente de Google |
+| `logCollector` | Receptor opcional de logs. El servicio administrado existente requiere aprovisionamiento y no admite cuentas nuevas automáticamente |
+| `managedData` | Datos preparados en el servicio; por defecto `true`, pero solo se activa con el receptor administrado reconocido y configurado |
 | `todoistToken` | Suma las tareas de Todoist (ver abajo) |
 | `todoistOnlyMine` | Solo tus tareas o las sin asignar. Por defecto `true` |
 
@@ -187,14 +202,18 @@ Si en el paso 5 no aparece "Cualquier usuario", tu cuenta es de una empresa
 
 ## Si algo no anda
 
+En la implementación administrada, consultar primero los logs remotos: no hace
+falta copiar código ni resultados del teléfono. El diagnóstico local de abajo
+es una alternativa para instalaciones sin receptor.
+
 | Qué pasa | Qué hacer |
 |---|---|
 | El lock screen muestra otro fondo | El Atajo pinta el fondo elegido en la acción, no el activo. Mantené apretado el lock screen y elegí ese |
 | Aparece un cartel con ✓ y "Listo" cada vez que corre | Apagá **"Mostrar al ejecutar"** en la acción "Run with Parameter" (debajo de "Texts" y "URLs") |
 | "Script completed without presenting UI… or outputting a value" | Scriptable terminó sin entregar la imagen; el mensaje no dice la causa. v0.13 reduce las corridas repetidas y guarda la última etapa. Esperá dos minutos y ejecutá una sola vez con internet. Si sigue, consultá el diagnóstico de abajo |
-| "Shortcuts no pudo convertir de Texto a NSString" en Base64 | El fallo está en la conversión de Atajos, después de Scriptable. El historial puede mostrar qué PNG preparó la corrida; no captura automáticamente ese error de otra acción |
+| "Shortcuts no pudo convertir de Texto a NSString" en Base64 | El fallo aparece después de Scriptable. La implementación administrada ofrece salida como archivo PNG desde v0.24 para omitir Base64; ver su guía. Los logs no capturan automáticamente errores de otras acciones de Atajos |
 | El fondo sale negro con un error en rojo | Es el error real, escrito para poder leerlo: mandale una captura al que lo mantiene |
-| Arriba dice `sin Google` o `sin Todoist` | No pudo conectarse. Revisá la URL o el token en `MI_CONFIG`. El resto del fondo sale igual |
+| Arriba dice `sin Google` o `sin Todoist` | En la independiente, revisar la URL o el token en `MI_CONFIG`. En la administrada, el mantenedor revisa el snapshot y los logs remotos: puede haber vencido la copia o fallado su consulta. El resto del fondo sale igual |
 | Faltan eventos | Revisá que el calendario esté en el iPhone (app Calendario → Calendarios) y que su nombre esté en `onlyCalendars` |
 | Sobran eventos (feriados de otros países, etc.) | Poné `onlyCalendars` con solo los que querés |
 | Una tarea sale dos veces | Revisá que el evento de Akiflow y la tarea tengan el mismo nombre |
@@ -218,34 +237,22 @@ vuelve a correr el calendario ni reemplaza el registro. Si no hay registro, pued
 estar usando una versión anterior a v0.13, haber fallado antes de iniciar el script
 o no haber podido guardar el archivo.
 
-Desde v0.15 también conserva un historial por corrida, incluidos los fondos
-reutilizados. v0.16 permite usar un receptor administrado para consultar los
-registros directamente, sin copiar resultados del teléfono. Su despliegue está
-probado con registros sintéticos y la recepción ya exige clave sin necesitar
-iniciar sesión. Ya se recuperaron registros completos del teléfono, con esperas
-de Google de decenas de minutos. La estabilidad del Atajo sigue sin confirmarse.
-Ver [Registros y mantenimiento remoto](docs/Logs.md).
-El cargador guardado administrado ofrece desde v0.24 una salida como archivo PNG
-en iCloud, para omitir la conversion Base64 de Atajos. Se elige con el parametro
-`archivo`; requiere actualizar primero el cargador y conectar su Output
-directamente a Establecer fondo. Los pasos y requisitos estan en
-[Entrega como archivo PNG](docs/Logs.md#entrega-como-archivo-png-v024).
-La consulta de Google espera hasta 12 s con un temporizador antes de continuar
-con los calendarios del iPhone; iOS puede suspender ese temporizador.
+El historial conserva un ID por corrida, etapas, tiempos y tamaños. Con un
+receptor configurado, el mantenimiento consulta esos registros desde el servicio,
+sin pedir exports al usuario. Ver [Registros y mantenimiento remoto](docs/Logs.md).
 
-v0.20 prepara automáticamente un script guardado, `LGA_LockScreenCal_App`, para
-quienes usan el receptor administrado. Conserva los ajustes en Keychain del
-teléfono, sin volver a pegar código. Se confirmó una ejecución sin abrir la app,
-pero apagar también **Mostrar al ejecutar** volvió a fallar. v0.21 usa datos de
-Google y Todoist preparados en el servicio, con la autorización del usuario,
-para reducir la espera de la ejecución silenciosa. Esa versión pudo entregar
-el fondo, pero el plazo de datos resultó demasiado corto y usó solo calendarios
-del iPhone. v0.22 amplía ese plazo y conserva las fuentes recientes guardadas;
-el usuario confirmó que recuperó colores y tareas en una ejecución silenciosa.
-v0.23 refuerza las ráfagas; falta observar estabilidad con uso habitual.
-Ver la documentación de registros antes de cambiar las acciones.
+La implementación administrada evita esperar a Google/Todoist en el teléfono y
+ofrece salida PNG en iCloud desde v0.24. Con `archivo`, Run entrega el archivo
+directamente a Establecer fondo: no se agrega Decodificar. La versión independiente
+sigue usando base64. Se confirmó funcionamiento silencioso con colores y tareas
+en v0.22; una repetición v0.23 falló en Base64. v0.24 tiene pruebas simuladas de
+ambos modos y requiere confirmar la nueva entrega en iOS. Ver el
+[estado actual](docs/Bitacora.md) antes de diagnosticar o cambiar las acciones.
 
 ### Actualizar un cargador anterior a v0.14
+
+Solo para un Atajo **inline antiguo**. No se aplica al script guardado ni a la
+migración a archivo PNG de la implementación administrada.
 
 Si el diagnóstico llega hasta la salida y Atajos igual muestra el error, v0.14
 cambia cómo el cargador devuelve el PNG: espera que termine la función descargada
@@ -282,17 +289,13 @@ las mejoras de v0.16 llegan sin reemplazarlo; ver [la guía de logs](docs/Logs.m
 
 ## Pasárselo a otra persona
 
-1. **Una copia limpia, sin tus claves:** en **Atajos**, mantené apretado tu Atajo →
-   **Duplicar**. En la copia, reemplazá todo el bloque `MI_CONFIG` por
-   `const MI_CONFIG = {};` (así no viajan tu URL de Google ni tu token de Todoist).
-2. **El link:** mantené apretada la copia → **Compartir** → **Copiar enlace de
-   iCloud**. El link es una foto del Atajo en ese momento.
-3. La otra persona sigue esta guía. Con el link se saltea el armado, pero igual tiene
-   que **elegir su fondo** (paso 4), **apagar "Mostrar al ejecutar"** si hiciera falta
-   y armar **sus automatizaciones**.
-4. Sin tocar nada, ve **todos** los calendarios de su iPhone, cada uno con su color.
-   Lo demás (filtrar calendarios, palabras clave, Google, Todoist) lo agrega en su
-   `MI_CONFIG`.
+Pasale este repo y la [guía para compartir](docs/Compartir.md). La instalación
+independiente usa sus calendarios, su fondo y, si quiere, sus propias cuentas.
+
+**No dupliques tu Atajo administrado como si fuera una instalación completa:**
+su acción Run apunta a un script y a ajustes que viven en tu teléfono. Para
+replicar también el servicio preparado hace falta aprovisionar una cuenta
+separada y adaptar el servicio; el actual no es multiusuario.
 
 ---
 
@@ -300,18 +303,23 @@ las mejoras de v0.16 llegan sin reemplazarlo; ver [la guía de logs](docs/Logs.m
 
 | Archivo | Qué es |
 |---|---|
-| `LockScreenCal.js` | El script: lee calendarios del iPhone, el puente de Google y Todoist; dibuja la imagen en un `<canvas>` dentro de un WebView; se la pasa a Atajos en base64 |
+| `LockScreenCal.js` | Dibuja el PNG; conserva salida base64 y contiene el cargador guardado que admite salida como archivo de iCloud |
+| `managedAppRunner` / `prepareManagedApp` | Cargador guardado administrado, ajustes en Keychain, caché de código y entrega nativa |
 | `loader.js` | Lo que va adentro del Atajo: baja `LockScreenCal.js`, espera que termine y devuelve el PNG con `return`. Sin internet, usa la última copia |
 | `google/Code.gs` | El puente opcional con Google Calendar |
 | `tools/preview.cjs` | Vista previa en la compu, con datos de ejemplo |
 | `tools/diagnostico.js` | Se ejecuta en Scriptable para leer la última etapa después de un corte |
 | `google/Logs.gs` | Bloque que se agrega al puente existente para guardar y leer logs técnicos autenticados |
 | `tools/ver-logs-google.js` | Consulta los registros recibidos por el puente sin mostrar su token |
+| `docs/Compartir.md` | Pasos para otra persona y límites del servicio de una sola cuenta |
+| `docs/Instalacion-administrada.md` | Atajo actual, migración a PNG, ajustes, actualizaciones y privacidad |
+| `docs/Logs.md` / `docs/Receptor.md` | Telemetría, datos preparados y operación del servicio |
 | `docs/Bitacora.md` | Estado del proyecto, decisiones tomadas y problemas conocidos |
 | `CLAUDE.md` | Instrucciones para agentes de IA que trabajen en el repo |
 
-Lo que se sube a `main` les llega a todos los que tienen el Atajo en la próxima
-corrida: un error rompe el fondo de todos. Antes de subir:
+Lo que se sube a `main` llega al refrescar el código: en cada corrida del cargador
+inline, o al vencer los cinco minutos de caché del guardado. Un error puede romper
+el fondo de todos. Antes de subir:
 
 ```sh
 node --input-type=module --check < LockScreenCal.js
@@ -321,6 +329,7 @@ node tools/check-deadlines.cjs  # plazos, respuestas tardías, limpieza y SHA-25
 node tools/check-app-runner.cjs # script guardado, Keychain, caché y salida nativa
 node tools/check-managed-data.cjs # datos preparados, fallback y vencimiento
 node tools/check-bursts.cjs     # ráfagas con cargador y programa completos
+node tools/check-bursts.cjs --file # ráfagas con entrega PNG como archivo
 npm i playwright && npx playwright install chromium
 node tools/preview.cjs          # -> preview/preview.png
 ```
