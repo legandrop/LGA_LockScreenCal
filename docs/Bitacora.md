@@ -7,9 +7,10 @@ cambia. Si algo de acá deja de ser cierto, se corrige en la misma pasada.
 
 ## Resumen
 
-**La ejecucion SILENCIOSA aun no esta validada.** Lega confirmo una corrida
-sin abrir Scriptable, pero despues aclaro que apagar Mostrar al ejecutar
-vuelve a fallar. No dar esa prueba anterior por solucion completa.
+**v0.21 entrego un fondo silenciosamente, pero perdio Google y Todoist por
+timeout del servicio preparado. v0.22 debe validar recuperacion de ambas fuentes.**
+Lega confirmo que el Atajo funciono, con perdida de colores y checkboxes.
+No dar una salida con datos degradados por solucion completa.
 Los registros del Atajo inline anterior recuperados el 12/10 muestran una consulta a Google de 45 min 31 s
 en v0.16 y otra de 61 min 4 s en v0.18. Esta ultima tambien tuvo un timeout de
 Todoist de 87.7 s; luego dibujo el PNG y preparo el retorno a las 19:21 locales,
@@ -132,12 +133,30 @@ sin espera, leases, fallo que preserva copia, privacidad y expiracion; pruebas
 del cliente verifican endpoint, clave separada, fallback y ausencia de esperas
 de logs antes del dibujo. Sintaxis y vista previa revisadas.
 
+**Regresion real v0.21 de las 21:02:59:** `mv5x3e81-4ummqrzipox` descargo
+el codigo, pero la consulta al snapshot vencio exactamente a los 1.5 s.
+Registro google_error y todoist_error con timeout, uso 18 eventos del iPhone y
+preparo el PNG en 4.2 s. La captura muestra el pie sin Google y sin Todoist.
+Esto explica los colores por calendario y la ausencia de tareas; no hubo un
+cambio en drawCalendar. Los logs del Worker no muestran un GET del telefono a
+/api/calendar; el POST final de registros si llego con 200. No confundir el
+plazo total vencido con una respuesta de error del servidor.
+
+v0.22 aumenta el plazo del snapshot a 3.5 s y el timeout nativo a 4 s.
+La ultima copia local de cada fuente se conserva ante una respuesta parcial y
+una respuesta antigua no pisa una mas nueva. Se revalida su vigencia despues
+de esperar; el limite de una hora no se extiende. Verificado con una conexion
+simulada de 2 s usando el temporizador real y sin copia previa. Una prueba del
+programa completo comprueba que se conserva el color individual de Google,
+task=true para el checkbox y el color por etiqueta de Todoist. El dibujo no
+cambio; se mantiene la ejecucion silenciosa. Falta validar esta version en iOS.
+
 ## Pendiente
 
-0. **Validar v0.21 silenciosa una vez en el telefono.** Mantener Run del script
+0. **Validar v0.22 con ambas fuentes en el telefono.** Mantener Run del script
    `LGA_LockScreenCal_App`, parametro conectado a Texto `atajo`, y Output de ese
    Run conectado a Decodificar. Run In App, Always Run in App y Mostrar al
-   ejecutar apagados. La fuente v0.21
+   ejecutar apagados. La fuente v0.22
    llega sola y prepara el cargador nuevo en disco. Consultar D1 despues de una
    corrida; no pedir codigo, tokens ni exports. No prometer
    estabilidad por una sola corrida ni regresar a la accion inline.

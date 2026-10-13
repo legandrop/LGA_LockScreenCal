@@ -227,7 +227,10 @@ quienes usan el receptor administrado. Conserva los ajustes en Keychain del
 teléfono, sin volver a pegar código. Se confirmó una ejecución sin abrir la app,
 pero apagar también **Mostrar al ejecutar** volvió a fallar. v0.21 usa datos de
 Google y Todoist preparados en el servicio, con la autorización del usuario,
-para reducir la espera de la ejecución silenciosa. Falta validarla en el iPhone.
+para reducir la espera de la ejecución silenciosa. Esa versión pudo entregar
+el fondo, pero el plazo de datos resultó demasiado corto y usó solo calendarios
+del iPhone. v0.22 amplía ese plazo y conserva las fuentes recientes guardadas;
+falta confirmar en el teléfono que vuelvan los colores y las tareas de Todoist.
 Ver la documentación de registros antes de cambiar las acciones.
 
 ### Actualizar un cargador anterior a v0.14

@@ -119,6 +119,14 @@ El codigo se reutiliza por cinco minutos y una descarga lenta usa la copia valid
 Los demas usuarios, sin el receptor administrado, mantienen el funcionamiento
 anterior; `managedData: false` permite desactivar esta via.
 
+v0.21 corto una consulta real del iPhone a los 1.5 s y dibujo solo calendarios
+nativos: faltaron los colores individuales de Google y las tareas de Todoist.
+v0.22 espera hasta 3.5 s por el snapshot, sin volver a consultar esas APIs en
+el telefono. Combina respuestas parciales con las fuentes locales recientes;
+una copia mas vieja no pisa una nueva. El vencimiento se revalida al usar datos.
+Las pruebas incluyen una respuesta de 2 s y la conservacion de colores y
+marca task que dibuja el checkbox. Falta la comprobacion de v0.22 en el iPhone.
+
 ## Alcance del diagnostico
 
 `loader_return_prepared` confirma que el cargador preparo un PNG base64 valido.

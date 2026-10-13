@@ -76,7 +76,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.21";
+const VERSION = "0.22";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -268,7 +268,7 @@ async function managedAppRunner() {
   const settings = JSON.parse(Keychain.get(settingsKey));
   const fm = FileManager.local();
   const cache = fm.joinPath(fm.libraryDirectory(), "LockScreenCal.js");
-  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.21", startedAt: Date.now(), events: [], revision: 0 };
+  const record = { id: Date.now().toString(36) + "-" + Math.random().toString(36).slice(2), version: "0.22", startedAt: Date.now(), events: [], revision: 0 };
   const context = { record, skipPreview: true, fromShortcut: !!config.runsWithSiri || args.shortcutParameter === "atajo" };
   let source, output;
   const attachTrace = code => {
@@ -682,21 +682,33 @@ async function loadManagedData() {
     }
     return out;
   };
+  let cached;
+  try { cached = valid(JSON.parse(fm.readString(path))); } catch (_) {}
   try {
     const token = CONFIG.googleUrl.match(/[?&]token=([^&]+)/)?.[1];
     if (!token) throw new Error("Falta token de datos");
     const request = new Request("https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/calendar");
     request.headers = { Authorization: "Bearer " + logKey("LockScreenCal.calendar.v1:" + decodeURIComponent(token)), "User-Agent": "LockScreenCal/" + VERSION };
-    request.timeoutInterval = 1.5;
-    const reply = await withDeadline(request.loadJSON(), 1500);
+    // 1.5 s resulto insuficiente en el iPhone aun con el servidor preparado.
+    // Se mantiene un plazo total corto y se permite completar la conexion inicial.
+    request.timeoutInterval = 4;
+    const reply = await withDeadline(request.loadJSON(), 3500);
     if (request.response?.statusCode !== 200) throw new Error("HTTP " + request.response?.statusCode);
     const data = valid(reply);
     if (!data) throw new Error("Respuesta inesperada de datos");
+    // Una respuesta parcial no borra una fuente reciente ya guardada. Tampoco
+    // una respuesta vieja debe pisar una copia mas nueva de esa fuente.
+    const previous = valid(cached);
+    for (const key of ["google", "todoist"]) {
+      if (previous?.[key] && (!data[key] || previous[key].at > data[key].at)) data[key] = previous[key];
+    }
     try { fm.writeString(path, JSON.stringify(data)); } catch (_) {}
     return data;
   } catch (error) {
     // Una copia local reciente permite continuar sin red. Nunca espera las APIs.
-    try { const data = valid(JSON.parse(fm.readString(path))); if (data) return { ...data, localCache: true }; } catch (_) {}
+    // Se revalida al usarla: una espera no debe extender la vigencia de una copia.
+    const local = valid(cached);
+    if (local?.google || local?.todoist) return { ...local, localCache: true };
     const message = String(error?.message || "");
     const reason = message.match(/^HTTP \d{3}$/)?.[0] || (/timeout/i.test(message) ? "timeout" : "Datos preparados no disponibles");
     return { version: 1, google: null, todoist: null, reason };

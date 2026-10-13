@@ -15,7 +15,7 @@ const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwM
 
 const epoch = Date.now();
 async function check({ inApp = false, renderFails = false, invalidOutput = false, useLoader = false, offline = false,
-  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false, googleNeverResponds = false, remoteRuns, managedSnapshot } = {}) {
+  files = new Map(), now = epoch, beforeRender, expectRender = true, storageFails = false, overrides = {}, busyWithoutCache = false, googleNeverResponds = false, remoteRuns, managedSnapshot, checkPayload } = {}) {
   const calls = [];
   let output;
   let errorText = "";
@@ -30,7 +30,7 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
     console: { log() {}, error() {} },
     config: { runsInApp: inApp },
     Timer: { schedule(ms, repeat, callback) {
-      assert.ok([12000, 2000, 1500, 1000, 15000].includes(ms));
+      assert.ok([12000, 2000, 3500, 1000, 15000].includes(ms));
       const handle = setTimeout(callback, 0);
       return { invalidate() { clearTimeout(handle); } };
     } },
@@ -42,6 +42,7 @@ async function check({ inApp = false, renderFails = false, invalidOutput = false
         renders++;
         if (beforeRender) await beforeRender();
         assert.match(js, /c.width = 1179; c.height = 2556;/);
+        if (checkPayload) checkPayload(JSON.parse(js.match(/drawCalendar\(c, (\{[^\n]*\})\);/)[1]));
         if (renderFails) throw new Error("Fallo de dibujo simulado");
         return invalidOutput ? null : png;
       }
@@ -176,6 +177,23 @@ async function readDiagnostic(files) {
   const managedEvents = [...managedFiles.entries()].filter(([name]) => name.includes("/LockScreenCal-logs/") && !name.endsWith(".sync.json")).flatMap(([,value]) => JSON.parse(value).events);
   assert.ok(managedEvents.some(e => e.stage === "google_ok"));
   assert.ok(managedEvents.some(e => e.stage === "todoist_ok"));
+  const today = new Date(epoch);
+  const dueDay = today.getFullYear() + "-" + String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+  await check({ useLoader: true, remoteRuns: [],
+    managedSnapshot: { version: 1,
+      google: { at: epoch, data: { events: [{title:"Evento de ejemplo",calendar:"Ejemplo",color:"#AABBCC",start:epoch+3600000,end:epoch+7200000,allDay:false}], calendars:["Ejemplo"] } },
+      todoist: { at: epoch, data: { me:{id:"fixture"}, projects:[{id:"project",color:"red"}],
+        tasks:[{content:"Tarea de ejemplo",project_id:"project",due:{date:dueDay},labels:["ALFA"]}] } },
+    },
+    overrides: { logRemote:true, logCollector:"https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs", googleUrl:"https://example.test?token=fixture", todoistToken:"FIXTURE", keywords:{ALFA:"#112233"} },
+    checkPayload: payload => {
+      assert.equal(payload.events.find(e=>e.title==="Evento de ejemplo").color,"#AABBCC","Se debe preservar el color individual de Google");
+      const task=payload.events.find(e=>e.title==="Tarea de ejemplo");
+      assert.equal(task.task,true,"Todoist debe conservar la marca que dibuja el checkbox");
+      assert.equal(task.color,"#112233","Se debe conservar el color de la etiqueta de Todoist");
+      assert.ok(!payload.footer.includes("sin Google")&&!payload.footer.includes("sin Todoist"));
+    },
+  });
   await check({ useLoader: true, offline: true });
   await check({ useLoader: true, inApp: true });
   await check({ useLoader: true, renderFails: true });
