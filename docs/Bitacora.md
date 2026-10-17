@@ -1,11 +1,24 @@
 # Bitácora — estado actual
 
-Actualizada el 12/10/2026. Versión del programa: **v0.24**. Esta guía registra
+Actualizada el 17/10/2026. Versión del programa: **v0.25**. Esta guía registra
 el estado comprobado y lo pendiente; no da por validado iOS a partir de pruebas
 simuladas. Para el usuario: [README](../README.md). Para otro iPhone:
 [Compartir](Compartir.md). Para el Atajo actual: [Instalación administrada](Instalacion-administrada.md).
 
 ## Qué funciona y qué falta confirmar
+
+- **v0.25 (17/10): fondos "sin colores" a veces.** Lega reportó que a veces el
+  fondo sale sin colores. Los registros de D1 no se pudieron leer desde esa
+  sesión (sin herramientas de Sites); el puente de Google respondió bien 5 de 5
+  veces (~5 s). Causa por el código: las copias preparadas (servidor y local)
+  vencían a la hora, y el servidor solo se refresca cuando se le pide. La primera
+  corrida tras más de una hora sin ejecuciones dibujaba solo calendarios nativos,
+  sin colores por evento ni tareas. Desde v0.25 una copia de 1 a 24 h no se
+  descarta: los eventos salen del iPhone (al día) y se pintan con los colores de
+  la copia (coincidencia por título, inicio y día completo); las tareas se usan
+  hasta 12 h. El pie dice `datos de HH:MM`. Probado con `tools/check-stale-data.cjs`
+  y simulaciones; **falta confirmarlo en el iPhone**. Si vuelve a salir sin colores
+  y el pie no dice `datos de` ni `sin Google`, leer `phone_runs` de esas horas.
 
 - Lega confirmó v0.22 funcionando sin abrir Scriptable, con colores individuales
   de Google y tareas/checks de Todoist. La corrida de las 21:15:02 preparó el PNG
@@ -53,8 +66,9 @@ El servidor conserva una copia por fuente en D1 `calendar_cache`; los secretos
 están en Sites. La lectura usa una clave distinta de la escritura de logs.
 Los calendarios del iPhone y el dibujo siguen locales. Cliente: 3.5 s de plazo
 lógico y 4 s nativos para pedir el snapshot; combina fuentes parciales con la
-copia local vigente y no pisa una nueva con una antigua. Las copias vencen a
-la hora, incluso después de esperar una respuesta.
+copia local vigente y no pisa una nueva con una antigua. Desde v0.25, una copia
+de Google de más de una hora (hasta 24 h) solo colorea los eventos del iPhone, y
+las tareas se aceptan hasta 12 h; el pie lo avisa con `datos de HH:MM`.
 
 GET /api/calendar devuelve la copia disponible sin esperar a las APIs externas
 e inicia refresco en waitUntil si pasaron 60 s. No hay cron. Después de

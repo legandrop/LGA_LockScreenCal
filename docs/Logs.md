@@ -113,8 +113,10 @@ GET `/api/calendar` exige una clave derivada con el prefijo
 `LockScreenCal.calendar.v1:`; la clave de logs no concede acceso a esos datos.
 La respuesta no espera a Google/Todoist. Si pasaron 60 s inicia actualizacion
 en el servidor con waitUntil; la siguiente corrida recibe el resultado. No hay
-actualizacion programada mientras no se solicita el endpoint. Se rechazan copias
-con mas de una hora y se conserva la ultima buena ante un fallo. Tras inactividad
+actualizacion programada mientras no se solicita el endpoint. Se conserva la
+ultima buena ante un fallo. Desde v0.25 el telefono no descarta una copia de mas
+de una hora: hasta 24 h la usa solo para colorear los eventos del iPhone, y las
+tareas hasta 12 h (ver Bitacora). Tras inactividad
 la primera corrida puede usar los calendarios del iPhone mientras se prepara la
 copia nueva. El telefono guarda tambien una copia local reciente para fallos de red.
 

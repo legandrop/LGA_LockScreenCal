@@ -65,7 +65,9 @@ El historial técnico y el receptor administrado se explican en `docs/Logs.md` y
 `docs/Receptor.md`. No pedir a Lega exports como procedimiento habitual. No incluye mensajes
 crudos de excepciones ni datos de eventos. Después de cambios en el cargador,
 mantener `tools/loader-body.js` igual al bloque desde `const URL =` de `loader.js`
-y ejecutar `node tools/check-shortcut.cjs` y `node tools/check-logs.cjs`.
+y ejecutar `node tools/check-shortcut.cjs` y `node tools/check-logs.cjs`. Ante
+cambios en datos preparados, `node tools/check-managed-data.cjs` y
+`node tools/check-stale-data.cjs`.
 
 Para compartir con otra persona, leer `docs/Compartir.md` y
 `docs/Instalacion-administrada.md`. No indicar duplicar el Atajo administrado

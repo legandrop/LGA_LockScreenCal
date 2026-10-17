@@ -18,10 +18,13 @@ vm.runInContext(source.match(/function withDeadline\(work, ms\) \{[\s\S]*?\n\}/)
  reply={...fixtures,google:{...fixtures.google,at:fixtures.google.at-1000}};
  data=await context.loadManagedData();assert.equal(data.google.at,fixtures.google.at,'Una copia vieja no debe pisar la mas nueva');
  offline=true;data=await context.loadManagedData();assert.equal(data.localCache,true);assert.ok(data.todoist);
+ // Mas de una hora: se conserva (el fondo la usa solo para colores); mas de 24 h, no.
  files.set('/lib/LockScreenCal-data.json',JSON.stringify({...fixtures,google:{...fixtures.google,at:Date.now()-3600001},todoist:null}));
+ data=await context.loadManagedData();assert.ok(data.google,'Una copia de mas de una hora sigue sirviendo para colores');assert.equal(data.todoist,null);
+ files.set('/lib/LockScreenCal-data.json',JSON.stringify({...fixtures,google:{...fixtures.google,at:Date.now()-24*3600000-1},todoist:null}));
  data=await context.loadManagedData();assert.equal(data.google,null);assert.equal(data.todoist,null);
  files.clear();offline=false;reply={version:99,token:'SECRET'};data=await context.loadManagedData();assert.equal(data.google,null);assert.equal(files.size,0);
  context.CONFIG.logCollector='https://other.test/api/runs';assert.equal(context.usesManagedData(),false);
  context.CONFIG.logCollector='https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs';context.CONFIG.managedData=false;assert.equal(context.usesManagedData(),false);
- console.log('OK: servicio autorizado, clave separada, copia local, vencimiento y respuesta invalida');
+ console.log('OK: servicio autorizado, clave separada, copia local, copia vieja para colores, vencimiento a 24 h y respuesta invalida');
 })().catch(error=>{console.error(error);process.exitCode=1;});

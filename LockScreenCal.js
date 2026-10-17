@@ -76,7 +76,7 @@ const CONFIG = {
 // Lo que manda el cargador (MI_CONFIG). Corriendo este archivo suelto no existe.
 if (typeof OVERRIDES === "object" && OVERRIDES) Object.assign(CONFIG, OVERRIDES);
 
-const VERSION = "0.24";
+const VERSION = "0.25";
 
 // ==== TRACE START ====
 // timeoutInterval limita inactividad de red, no el tiempo total de la consulta.
@@ -710,6 +710,14 @@ async function loadFromIPhone(now) {
 function usesManagedData() {
   return CONFIG.managedData !== false && CONFIG.logCollector === "https://lga-lockscreencal-logs.swoony-degu-6417.chatgpt.site/api/runs";
 }
+// Una copia de mas de una hora ya no se usa como lista de eventos, pero sigue
+// sirviendo para colorear los eventos del iPhone (y las tareas, hasta 12 h). Antes
+// se descartaba: tras una hora sin corridas (a la manana, despues de la noche) el
+// primer fondo salia sin colores ni tareas aunque hubiera una copia de hace poco.
+const DATA_FRESH_MS = 3600000;
+const DATA_STALE_MAX_MS = 24 * 3600000;
+const TASKS_STALE_MAX_MS = 12 * 3600000;
+
 async function loadManagedData() {
   const fm = FileManager.local();
   const path = fm.joinPath(fm.libraryDirectory(), "LockScreenCal-data.json");
@@ -718,7 +726,7 @@ async function loadManagedData() {
     const out = { version: 1, google: null, todoist: null };
     for (const key of ["google", "todoist"]) {
       const source = input[key], age = Date.now() - source?.at;
-      if (Number.isFinite(age) && age >= 0 && age < 3600000 &&
+      if (Number.isFinite(age) && age >= 0 && age < DATA_STALE_MAX_MS &&
           (key === "google" ? Array.isArray(source.data?.events) : Array.isArray(source.data?.tasks) && Array.isArray(source.data?.projects) && source.data?.me?.id)) out[key] = source;
     }
     return out;
@@ -966,6 +974,9 @@ async function build(W, H, phase, trace) {
   let events = null;
   let note = "";
   let googleCals = null;
+  let staleGoogle = null;
+  let staleAt = Infinity;
+  const ageOf = src => Date.now() - src.at;
   if (CONFIG.googleUrl) {
     phase("Consulta a Google");
     try {
@@ -974,14 +985,26 @@ async function build(W, H, phase, trace) {
         if (!prepared.google) throw new Error(prepared.reason || "Datos de Google no disponibles");
       }
       const g = await loadFromGoogle(managed ? prepared.google.data : null);
-      events = g.events;
-      googleCals = g.calendars;
-      trace.event("google_ok", { count: events.length });
-      console.log("Google: " + events.length + " eventos de " + [...googleCals].join(", "));
+      if (managed && ageOf(prepared.google) >= DATA_FRESH_MS) {
+        // Copia vieja: los eventos salen del iPhone (al dia) y esta solo los pinta.
+        staleGoogle = g;
+        staleAt = Math.min(staleAt, prepared.google.at);
+        console.log("Google: copia de hace " + Math.round(ageOf(prepared.google) / 60000) + " min, solo para colores");
+      } else {
+        events = g.events;
+        googleCals = g.calendars;
+        console.log("Google: " + events.length + " eventos de " + [...googleCals].join(", "));
+      }
+      trace.event("google_ok", { count: g.events.length });
     } catch (err) { trace.error("google_error", err); console.error(err); note = " · sin Google"; }
   }
   phase("Calendarios del iPhone");
-  const phone = await loadFromIPhone(now);
+  let phone = await loadFromIPhone(now);
+  if (staleGoogle) {
+    const key = e => [String(e.title).trim().toLowerCase(), e.start, !!e.allDay].join("|");
+    const colors = new Map(staleGoogle.events.map(e => [key(e), e.color]));
+    phone = phone.map(e => staleGoogle.calendars.has(e.calendar) && colors.has(key(e)) ? { ...e, color: colors.get(key(e)) } : e);
+  }
   trace.event("phone_ok", { count: phone.length });
   console.log("iPhone: " + phone.length + " eventos");
   let tasks = [];
@@ -991,6 +1014,9 @@ async function build(W, H, phase, trace) {
       if (managed) {
         if (!prepared) prepared = await loadManagedData();
         if (!prepared.todoist) throw new Error(prepared.reason || "Datos de Todoist no disponibles");
+        // Tareas viejas pueden incluir alguna ya hecha: se aceptan solo hasta 12 h.
+        if (ageOf(prepared.todoist) >= TASKS_STALE_MAX_MS) throw new Error("Datos de Todoist vencidos");
+        if (ageOf(prepared.todoist) >= DATA_FRESH_MS) staleAt = Math.min(staleAt, prepared.todoist.at);
       }
       tasks = await withDeadline(loadFromTodoist(now, managed ? prepared.todoist.data : null), managed ? 1000 : 15000);
       trace.event("todoist_ok", { count: tasks.length });
@@ -1026,6 +1052,10 @@ async function build(W, H, phase, trace) {
   });
 
   const two = n => String(n).padStart(2, "0");
+  if (Number.isFinite(staleAt)) {
+    const d = new Date(staleAt);
+    note += ` · datos de ${two(d.getHours())}:${two(d.getMinutes())}`;
+  }
   const payload = {
     now: now.getTime(),
     events,
