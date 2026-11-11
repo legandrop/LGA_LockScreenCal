@@ -1,5 +1,8 @@
 # LockScreenCal
 
+> **Archivado (noviembre de 2026).** Ya no se mantiene: el fondo con la semana ahora lo arma la app DayTrace en el
+> iPhone. El código queda como está, para quien lo quiera usar o copiar.
+
 Tu calendario y tus tareas de los próximos días en el lock screen del iPhone, con
 colores y fondo negro. No es una app del App Store: es un **Atajo** de iOS más la
 app gratis [Scriptable](https://apps.apple.com/app/scriptable/id1405459188), que
